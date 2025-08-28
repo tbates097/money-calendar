@@ -14,7 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+// Anchor lib ignore to repo root only so src/lib is tracked
+/lib/
 lib64/
 parts/
 sdist/
