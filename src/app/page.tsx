@@ -172,7 +172,14 @@ function PaycheckForm({
       </div>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onAdd({ date: new Date(date).toISOString(), amount })}
+          onClick={() => onAdd({ 
+            id: `paycheck-${Date.now()}`,
+            name: "Paycheck",
+            date: new Date(date).toISOString(), 
+            amount,
+            recurring: false,
+            schedule: null
+          })}
         >
           Add Paycheck
         </button>
@@ -216,7 +223,14 @@ function BillForm({ onAdd }: { onAdd: (b: Bill) => void }) {
         </div>
       </div>
       <button
-        onClick={() => onAdd({ date: new Date(date).toISOString(), amount, name })}
+        onClick={() => onAdd({ 
+          id: `bill-${Date.now()}`,
+          name,
+          date: new Date(date).toISOString(), 
+          amount,
+          recurring: false,
+          schedule: null
+        })}
       >
         Add Bill
       </button>

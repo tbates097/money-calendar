@@ -1,18 +1,30 @@
 export type Bill = {
-  name?: string;
-  date: string; // ISO
-  amount: number; // positive value
+  id: string;
+  name: string;
+  amount: number;
+  date: string;
+  recurring: boolean;
+  schedule: RecurringSchedule | null;
 };
 
 export type Paycheck = {
-  date: string; // ISO
-  amount: number; // positive value
+  id: string;
+  name: string;
+  amount: number;
+  date: string;
+  recurring: boolean;
+  schedule: RecurringSchedule | null;
 };
 
 export type ScheduleConfig = {
   monthsToProject: number; // e.g., 12
   payPeriodDays: number; // e.g., 14
   averagePaycheckAmount: number; // used for future periods when explicit checks missing
+};
+
+export type RecurringSchedule = {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number;
 };
 
 export const defaultScheduleConfig: ScheduleConfig = {
@@ -173,13 +185,48 @@ function toISO(d: Date) {
 export function sampleData() {
   const today = startOfDay(new Date());
   const bills: Bill[] = [
-    { name: "Rent", date: toISO(addDays(today, 2)), amount: 1500 },
-    { name: "Utilities", date: toISO(addDays(today, 10)), amount: 200 },
-    { name: "Internet", date: toISO(addDays(today, 20)), amount: 80 },
+    { 
+      id: "sample-rent",
+      name: "Rent", 
+      date: toISO(addDays(today, 2)), 
+      amount: 1500,
+      recurring: true,
+      schedule: { frequency: 'monthly', interval: 1 }
+    },
+    { 
+      id: "sample-utilities",
+      name: "Utilities", 
+      date: toISO(addDays(today, 10)), 
+      amount: 200,
+      recurring: true,
+      schedule: { frequency: 'monthly', interval: 1 }
+    },
+    { 
+      id: "sample-internet",
+      name: "Internet", 
+      date: toISO(addDays(today, 20)), 
+      amount: 80,
+      recurring: true,
+      schedule: { frequency: 'monthly', interval: 1 }
+    },
   ];
   const paychecks: Paycheck[] = [
-    { date: toISO(addDays(today, 1)), amount: 2100 },
-    { date: toISO(addDays(today, 15)), amount: 2050 },
+    { 
+      id: "sample-paycheck-1",
+      name: "Salary",
+      date: toISO(addDays(today, 1)), 
+      amount: 2100,
+      recurring: true,
+      schedule: { frequency: 'weekly', interval: 2 }
+    },
+    { 
+      id: "sample-paycheck-2",
+      name: "Salary",
+      date: toISO(addDays(today, 15)), 
+      amount: 2050,
+      recurring: true,
+      schedule: { frequency: 'weekly', interval: 2 }
+    },
   ];
   const config: ScheduleConfig = {
     monthsToProject: 12,
