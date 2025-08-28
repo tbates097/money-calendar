@@ -60,7 +60,7 @@ export default function HomePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card space-y-4">
           <h2 className="text-lg font-semibold">Settings</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block mb-1">Starting Balance</label>
               <input
@@ -155,7 +155,7 @@ function PaycheckForm({
   const [amount, setAmount] = useState<number>(avgAmount);
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block mb-1">Date</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full" />
@@ -170,7 +170,7 @@ function PaycheckForm({
           />
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={() => onAdd({ 
             id: `paycheck-${Date.now()}`,
@@ -203,7 +203,7 @@ function BillForm({ onAdd }: { onAdd: (b: Bill) => void }) {
   const [name, setName] = useState<string>("Bill");
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div>
           <label className="block mb-1">Name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
