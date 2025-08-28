@@ -9,6 +9,7 @@ import {
   defaultScheduleConfig,
   sampleData,
 } from "../lib/finance";
+import ImportSelector from "@/components/ImportSelector";
 
 export default function HomePage() {
   const [bills, setBills] = useState<Bill[]>([]);
@@ -50,6 +51,11 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Money Calendar</h1>
+
+      <ImportSelector 
+        onBillsImported={(importedBills) => setBills(prev => [...prev, ...importedBills])}
+        onPaychecksImported={(importedPaychecks) => setPaychecks(prev => [...prev, ...importedPaychecks])}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card space-y-4">
