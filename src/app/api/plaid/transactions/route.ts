@@ -1,93 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID!,
-      'PLAID-SECRET': process.env.PLAID_SECRET!,
-    },
-  },
-});
-
-const plaidClient = new PlaidApi(configuration);
-
-// Keywords to identify bills vs paychecks
-const BILL_KEYWORDS = [
-  'electric', 'power', 'energy', 'utility', 'water', 'gas', 'internet', 'wifi',
-  'phone', 'mobile', 'cable', 'tv', 'rent', 'mortgage', 'insurance', 'car',
-  'auto', 'loan', 'credit card', 'netflix', 'spotify', 'amazon prime', 'gym',
-  'membership', 'subscription', 'tax', 'fees', 'service charge'
-];
-
-const PAYCHECK_KEYWORDS = [
-  'payroll', 'salary', 'direct deposit', 'paycheck', 'wages', 'income',
-  'deposit', 'transfer in', 'credit'
-];
-
-function categorizeTransaction(transaction: any) {
-  const name = transaction.name?.toLowerCase() || '';
-  const category = transaction.category?.join(' ')?.toLowerCase() || '';
-  const searchText = `${name} ${category}`;
-
-  // Check for paycheck indicators
-  if (PAYCHECK_KEYWORDS.some(keyword => searchText.includes(keyword))) {
-    return 'paycheck';
-  }
-
-  // Check for bill indicators
-  if (BILL_KEYWORDS.some(keyword => searchText.includes(keyword))) {
-    return 'bill';
-  }
-
-  // Default categorization based on amount
-  if (transaction.amount > 0) {
-    return 'income';
-  } else {
-    return 'expense';
-  }
-}
-
+// Plaid integration is optional and requires API keys
+// This endpoint is kept for compatibility but may not work without proper configuration
 export async function POST(request: NextRequest) {
   try {
-    const { accessToken, startDate, endDate } = await request.json();
+    // Check if Plaid credentials are configured
+    if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
+      return NextResponse.json(
+        { error: 'Plaid integration not configured. Use CSV upload or manual entry instead.' },
+        { status: 400 }
+      );
+    }
 
-    const transactionsResponse = await plaidClient.transactionsGet({
-      access_token: accessToken,
-      start_date: startDate,
-      end_date: endDate,
-      options: {
-        include_personal_finance_category: true,
-      },
-    });
-
-    const transactions = transactionsResponse.data.transactions.map(transaction => ({
-      id: transaction.transaction_id,
-      name: transaction.name,
-      amount: transaction.amount,
-      date: transaction.date,
-      category: transaction.category,
-      type: categorizeTransaction(transaction),
-      merchant: transaction.merchant_name,
-    }));
-
-    // Group by type
-    const bills = transactions.filter(t => t.type === 'bill');
-    const paychecks = transactions.filter(t => t.type === 'paycheck');
-    const other = transactions.filter(t => !['bill', 'paycheck'].includes(t.type));
-
-    return NextResponse.json({
-      transactions,
-      bills,
-      paychecks,
-      other,
-      total: transactions.length,
-    });
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
+    // For now, return an error suggesting to use free alternatives
     return NextResponse.json(
-      { error: 'Failed to fetch transactions' },
+      { 
+        error: 'Plaid integration is deprecated. Please use CSV upload or manual entry for free data import.',
+        alternatives: [
+          'Upload CSV file from your bank',
+          'Use manual entry for bills and paychecks',
+          'Try sample data to see the app in action'
+        ]
+      },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error with Plaid integration:', error);
+    return NextResponse.json(
+      { error: 'Plaid integration not available. Use free alternatives instead.' },
       { status: 500 }
     );
   }

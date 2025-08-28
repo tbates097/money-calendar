@@ -1,34 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
 
-const configuration = new Configuration({
-  basePath: PlaidEnvironments[process.env.PLAID_ENV || 'sandbox'],
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID!,
-      'PLAID-SECRET': process.env.PLAID_SECRET!,
-    },
-  },
-});
-
-const plaidClient = new PlaidApi(configuration);
-
+// Plaid integration is optional and requires API keys
+// This endpoint is kept for compatibility but may not work without proper configuration
 export async function POST(request: NextRequest) {
   try {
-    const { publicToken } = await request.json();
+    // Check if Plaid credentials are configured
+    if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
+      return NextResponse.json(
+        { error: 'Plaid integration not configured. Use CSV upload or manual entry instead.' },
+        { status: 400 }
+      );
+    }
 
-    const exchangeResponse = await plaidClient.itemPublicTokenExchange({
-      public_token: publicToken,
-    });
-
-    return NextResponse.json({
-      access_token: exchangeResponse.data.access_token,
-      item_id: exchangeResponse.data.item_id,
-    });
-  } catch (error) {
-    console.error('Error exchanging token:', error);
+    // For now, return an error suggesting to use free alternatives
     return NextResponse.json(
-      { error: 'Failed to exchange token' },
+      { 
+        error: 'Plaid integration is deprecated. Please use CSV upload or manual entry for free data import.',
+        alternatives: [
+          'Upload CSV file from your bank',
+          'Use manual entry for bills and paychecks',
+          'Try sample data to see the app in action'
+        ]
+      },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error with Plaid integration:', error);
+    return NextResponse.json(
+      { error: 'Plaid integration not available. Use free alternatives instead.' },
       { status: 500 }
     );
   }

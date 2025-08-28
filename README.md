@@ -23,21 +23,9 @@ A web application for planning bills, paychecks, and financial projections with 
 npm install
 ```
 
-### 2. Environment Setup (Optional)
+### 2. Environment Setup
 
-The app works completely without any API keys or external services. However, if you want to use Plaid for bank integration:
-
-1. Sign up for a [Plaid account](https://dashboard.plaid.com/signup)
-2. Create a new app in the Plaid Dashboard
-3. Get your API credentials (Client ID and Secret)
-4. Set environment variables:
-
-```bash
-# .env.local (optional - only needed for Plaid)
-PLAID_CLIENT_ID=your_client_id_here
-PLAID_SECRET=your_secret_here
-PLAID_ENV=sandbox  # or 'development' for testing
-```
+The app works completely without any API keys or external services. No environment variables are required!
 
 ### 3. Development
 
@@ -86,13 +74,9 @@ The app uses intelligent keyword matching to categorize transactions:
 
 **Paychecks**: payroll, salary, direct deposit, paycheck, wages, income, deposit, transfer in, credit
 
-## API Routes (Optional - Plaid Integration)
+## API Routes
 
-- `POST /api/plaid/create-link-token` - Generate Plaid Link token
-- `POST /api/plaid/exchange-token` - Exchange public token for access token
-- `POST /api/plaid/transactions` - Fetch and categorize transactions
-
-*Note: These routes are only needed if you want to use Plaid for bank integration. The app works completely without them using the free import options.*
+The app uses client-side processing for all data import. No server-side API routes are required for the core functionality.
 
 ## Data Structure
 
