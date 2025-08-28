@@ -8,7 +8,7 @@ import {
   computeProjection,
   defaultScheduleConfig,
   sampleData,
-} from "@/lib/finance";
+} from "../lib/finance";
 
 export default function HomePage() {
   const [bills, setBills] = useState<Bill[]>([]);
