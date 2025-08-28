@@ -27,7 +27,16 @@ export default function ImportSelector({ onBillsImported, onPaychecksImported }:
         >
           ← Back to import options
         </button>
-        <CSVImport onBillsImported={onBillsImported} onPaychecksImported={onPaychecksImported} />
+        <CSVImport 
+          onBillsImported={(bills) => {
+            console.log('ImportSelector received bills:', bills);
+            onBillsImported(bills);
+          }} 
+          onPaychecksImported={(paychecks) => {
+            console.log('ImportSelector received paychecks:', paychecks);
+            onPaychecksImported(paychecks);
+          }} 
+        />
       </div>
     );
   }

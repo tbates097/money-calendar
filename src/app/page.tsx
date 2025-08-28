@@ -46,8 +46,14 @@ export default function HomePage() {
       <h1 className="text-2xl font-semibold">Money Calendar</h1>
 
       <ImportSelector 
-        onBillsImported={(importedBills) => setBills(prev => [...prev, ...importedBills])}
-        onPaychecksImported={(importedPaychecks) => setPaychecks(prev => [...prev, ...importedPaychecks])}
+        onBillsImported={(importedBills) => {
+          console.log('Main page received bills:', importedBills);
+          setBills(prev => [...prev, ...importedBills]);
+        }}
+        onPaychecksImported={(importedPaychecks) => {
+          console.log('Main page received paychecks:', importedPaychecks);
+          setPaychecks(prev => [...prev, ...importedPaychecks]);
+        }}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

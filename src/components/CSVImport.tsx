@@ -105,6 +105,7 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
   const [transactions, setTransactions] = useState<CSVTransaction[]>([]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'bill' | 'paycheck' | 'income' | 'expense'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'name'>('date');
@@ -170,7 +171,10 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
         schedule: null,
       }));
     
+    console.log('Importing bills:', selectedBills);
     onBillsImported(selectedBills);
+    setSuccessMessage(`Successfully imported ${selectedBills.length} bills!`);
+    setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   const importSelectedPaychecks = () => {
@@ -185,7 +189,10 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
         schedule: null,
       }));
     
+    console.log('Importing paychecks:', selectedPaychecks);
     onPaychecksImported(selectedPaychecks);
+    setSuccessMessage(`Successfully imported ${selectedPaychecks.length} paychecks!`);
+    setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   // Filter and sort transactions
@@ -250,6 +257,12 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
       {error && (
         <div className="text-sm text-red-600 bg-red-50 p-3 rounded">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="text-sm text-green-600 bg-green-50 p-3 rounded">
+          {successMessage}
         </div>
       )}
 
