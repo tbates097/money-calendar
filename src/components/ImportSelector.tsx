@@ -11,63 +11,12 @@ interface ImportSelectorProps {
   onPaychecksImported: (paychecks: Paycheck[]) => void;
 }
 
-type ImportMethod = 'csv' | 'manual' | 'bank' | 'sample';
+type ImportMethod = 'csv' | 'manual' | 'bank';
 
 export default function ImportSelector({ onBillsImported, onPaychecksImported }: ImportSelectorProps) {
   const [selectedMethod, setSelectedMethod] = useState<ImportMethod | null>(null);
 
-  const importSampleData = () => {
-    // Sample bills
-    const sampleBills: Bill[] = [
-      {
-        id: 'sample-rent',
-        name: 'Rent',
-        amount: 1500,
-        date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        recurring: true,
-        schedule: { frequency: 'monthly', interval: 1 }
-      },
-      {
-        id: 'sample-utilities',
-        name: 'Utilities',
-        amount: 200,
-        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        recurring: true,
-        schedule: { frequency: 'monthly', interval: 1 }
-      },
-      {
-        id: 'sample-internet',
-        name: 'Internet',
-        amount: 80,
-        date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        recurring: true,
-        schedule: { frequency: 'monthly', interval: 1 }
-      }
-    ];
 
-    // Sample paychecks
-    const samplePaychecks: Paycheck[] = [
-      {
-        id: 'sample-paycheck-1',
-        name: 'Salary',
-        amount: 2100,
-        date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        recurring: true,
-        schedule: { frequency: 'weekly', interval: 2 }
-      },
-      {
-        id: 'sample-paycheck-2',
-        name: 'Salary',
-        amount: 2050,
-        date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        recurring: true,
-        schedule: { frequency: 'weekly', interval: 2 }
-      }
-    ];
-
-    onBillsImported(sampleBills);
-    onPaychecksImported(samplePaychecks);
-  };
 
   if (selectedMethod === 'csv') {
     return (
@@ -118,7 +67,7 @@ export default function ImportSelector({ onBillsImported, onPaychecksImported }:
         <p className="text-gray-600">Choose how you'd like to add your bills and paychecks</p>
       </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* CSV Import Option */}
         <div className="border border-gray-200 rounded-lg p-6 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
              onClick={() => setSelectedMethod('csv')}>
@@ -182,26 +131,7 @@ export default function ImportSelector({ onBillsImported, onPaychecksImported }:
            </div>
          </div>
 
-         {/* Sample Data Option */}
-         <div className="border border-gray-200 rounded-lg p-6 hover:border-purple-300 hover:shadow-md transition-all cursor-pointer"
-              onClick={importSampleData}>
-          <div className="text-center">
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="font-semibold text-lg mb-2">Try Sample Data</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              See how the app works with sample bills and paychecks. You can always replace them later.
-            </p>
-            <div className="text-xs text-gray-500 space-y-1">
-              <div>✅ Instant demo</div>
-              <div>✅ No setup required</div>
-              <div>✅ See features in action</div>
-            </div>
-          </div>
-        </div>
+
       </div>
 
       <div className="text-center pt-4 border-t">

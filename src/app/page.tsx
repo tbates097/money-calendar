@@ -7,7 +7,6 @@ import {
   ScheduleConfig,
   computeProjection,
   defaultScheduleConfig,
-  sampleData,
 } from "../lib/finance";
 import ImportSelector from "@/components/ImportSelector";
 
@@ -25,12 +24,6 @@ export default function HomePage() {
       setPaychecks(parsed.paychecks ?? []);
       setBalanceStart(parsed.balanceStart ?? 0);
       setConfig(parsed.config ?? defaultScheduleConfig);
-    } else {
-      const s = sampleData();
-      setBills(s.bills);
-      setPaychecks(s.paychecks);
-      setBalanceStart(s.balanceStart);
-      setConfig(s.config);
     }
   }, []);
 
@@ -99,17 +92,6 @@ export default function HomePage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => {
-                const s = sampleData();
-                setBills(s.bills);
-                setPaychecks(s.paychecks);
-                setBalanceStart(s.balanceStart);
-                setConfig(s.config);
-              }}
-            >
-              Load Sample
-            </button>
-            <button
               className="bg-red-50 text-red-700 border-red-200"
               onClick={() => {
                 setBills([]);
@@ -117,7 +99,7 @@ export default function HomePage() {
                 setBalanceStart(0);
               }}
             >
-              Clear
+              Clear All Data
             </button>
           </div>
         </div>

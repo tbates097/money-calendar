@@ -14,9 +14,10 @@ interface CSVTransaction {
   amount: number;
   date: string;
   type: 'bill' | 'paycheck' | 'income' | 'expense';
+  selected: boolean;
 }
 
-// Keywords to identify bills vs paychecks (same as Plaid version)
+// Keywords to identify bills vs paychecks
 const BILL_KEYWORDS = [
   'electric', 'power', 'energy', 'utility', 'water', 'gas', 'internet', 'wifi',
   'phone', 'mobile', 'cable', 'tv', 'rent', 'mortgage', 'insurance', 'car',
@@ -92,7 +93,8 @@ function parseCSV(csvText: string): CSVTransaction[] {
       name,
       amount,
       date,
-      type
+      type,
+      selected: true
     });
   }
   
@@ -103,6 +105,10 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
   const [transactions, setTransactions] = useState<CSVTransaction[]>([]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'bill' | 'paycheck' | 'income' | 'expense'>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'name'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -126,9 +132,35 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
     reader.readAsText(file);
   };
 
-  const importBills = () => {
-    const bills = transactions
-      .filter(t => t.type === 'bill')
+  const updateTransactionType = (id: string, newType: 'bill' | 'paycheck' | 'income' | 'expense') => {
+    setTransactions(prev => 
+      prev.map(t => t.id === id ? { ...t, type: newType } : t)
+    );
+  };
+
+  const toggleTransactionSelection = (id: string) => {
+    setTransactions(prev => 
+      prev.map(t => t.id === id ? { ...t, selected: !t.selected } : t)
+    );
+  };
+
+  const selectAll = () => {
+    setTransactions(prev => prev.map(t => ({ ...t, selected: true })));
+  };
+
+  const selectNone = () => {
+    setTransactions(prev => prev.map(t => ({ ...t, selected: false })));
+  };
+
+  const selectByType = (type: 'bill' | 'paycheck' | 'income' | 'expense') => {
+    setTransactions(prev => 
+      prev.map(t => ({ ...t, selected: t.type === type }))
+    );
+  };
+
+  const importSelectedBills = () => {
+    const selectedBills = transactions
+      .filter(t => t.selected && t.type === 'bill')
       .map(t => ({
         id: t.id,
         name: t.name,
@@ -138,12 +170,12 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
         schedule: null,
       }));
     
-    onBillsImported(bills);
+    onBillsImported(selectedBills);
   };
 
-  const importPaychecks = () => {
-    const paychecks = transactions
-      .filter(t => t.type === 'paycheck')
+  const importSelectedPaychecks = () => {
+    const selectedPaychecks = transactions
+      .filter(t => t.selected && t.type === 'paycheck')
       .map(t => ({
         id: t.id,
         name: t.name,
@@ -153,12 +185,37 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
         schedule: null,
       }));
     
-    onPaychecksImported(paychecks);
+    onPaychecksImported(selectedPaychecks);
   };
 
-  const bills = transactions.filter(t => t.type === 'bill');
-  const paychecks = transactions.filter(t => t.type === 'paycheck');
-  const other = transactions.filter(t => !['bill', 'paycheck'].includes(t.type));
+  // Filter and sort transactions
+  const filteredAndSortedTransactions = transactions
+    .filter(t => {
+      const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = filterType === 'all' || t.type === filterType;
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'amount':
+          comparison = Math.abs(a.amount) - Math.abs(b.amount);
+          break;
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+  const selectedBills = filteredAndSortedTransactions.filter(t => t.selected && t.type === 'bill');
+  const selectedPaychecks = filteredAndSortedTransactions.filter(t => t.selected && t.type === 'paycheck');
+  const allBills = transactions.filter(t => t.type === 'bill');
+  const allPaychecks = transactions.filter(t => t.type === 'paycheck');
+  const allOther = transactions.filter(t => !['bill', 'paycheck'].includes(t.type));
 
   return (
     <div className="card space-y-4">
@@ -198,78 +255,189 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
 
       {transactions.length > 0 && (
         <div className="space-y-4">
-          <div className="text-sm text-gray-600">
-            Found {transactions.length} transactions
-          </div>
-          
+          {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-blue-50 p-3 rounded">
-              <div className="font-medium text-blue-900">{bills.length}</div>
-              <div className="text-sm text-blue-700">Bills</div>
+              <div className="font-medium text-blue-900">{allBills.length}</div>
+              <div className="text-sm text-blue-700">Total Bills</div>
             </div>
             <div className="bg-green-50 p-3 rounded">
-              <div className="font-medium text-green-900">{paychecks.length}</div>
-              <div className="text-sm text-green-700">Paychecks</div>
+              <div className="font-medium text-green-900">{allPaychecks.length}</div>
+              <div className="text-sm text-green-700">Total Paychecks</div>
             </div>
             <div className="bg-gray-50 p-3 rounded">
-              <div className="font-medium text-gray-900">{other.length}</div>
-              <div className="text-sm text-gray-700">Other</div>
+              <div className="font-medium text-gray-900">{allOther.length}</div>
+              <div className="text-sm text-gray-700">Other Transactions</div>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          {/* Filters and Controls */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                placeholder="Search transactions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 px-3 py-2 border rounded"
+              />
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+                className="px-3 py-2 border rounded"
+              >
+                <option value="all">All Types</option>
+                <option value="bill">Bills Only</option>
+                <option value="paycheck">Paychecks Only</option>
+                <option value="income">Income Only</option>
+                <option value="expense">Expenses Only</option>
+              </select>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={selectAll}
+                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+              >
+                Select All
+              </button>
+              <button
+                onClick={selectNone}
+                className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              >
+                Select None
+              </button>
+              <button
+                onClick={() => selectByType('bill')}
+                className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200"
+              >
+                Select Bills
+              </button>
+              <button
+                onClick={() => selectByType('paycheck')}
+                className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200"
+              >
+                Select Paychecks
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-2 py-1 text-sm border rounded"
+              >
+                <option value="date">Date</option>
+                <option value="amount">Amount</option>
+                <option value="name">Name</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
+          </div>
+
+          {/* Import Buttons */}
+          <div className="flex flex-wrap gap-2">
             <button
-              onClick={importBills}
-              disabled={bills.length === 0}
+              onClick={importSelectedBills}
+              disabled={selectedBills.length === 0}
               className="btn btn-primary"
             >
-              Import {bills.length} Bills
+              Import {selectedBills.length} Selected Bills
             </button>
             <button
-              onClick={importPaychecks}
-              disabled={paychecks.length === 0}
+              onClick={importSelectedPaychecks}
+              disabled={selectedPaychecks.length === 0}
               className="btn btn-secondary"
             >
-              Import {paychecks.length} Paychecks
+              Import {selectedPaychecks.length} Selected Paychecks
             </button>
           </div>
 
-          <div className="max-h-60 overflow-y-auto">
+          {/* Transactions Table */}
+          <div className="max-h-96 overflow-y-auto border rounded">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-white">
-                <tr className="border-b">
-                  <th className="text-left py-2">Date</th>
-                  <th className="text-left py-2">Name</th>
-                  <th className="text-right py-2">Amount</th>
-                  <th className="text-left py-2">Type</th>
+              <thead className="sticky top-0 bg-white border-b">
+                <tr>
+                  <th className="text-left py-2 px-2">
+                    <input
+                      type="checkbox"
+                      checked={filteredAndSortedTransactions.length > 0 && filteredAndSortedTransactions.every(t => t.selected)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setTransactions(prev => 
+                            prev.map(t => 
+                              filteredAndSortedTransactions.some(ft => ft.id === t.id) 
+                                ? { ...t, selected: true }
+                                : t
+                            )
+                          );
+                        } else {
+                          setTransactions(prev => 
+                            prev.map(t => 
+                              filteredAndSortedTransactions.some(ft => ft.id === t.id) 
+                                ? { ...t, selected: false }
+                                : t
+                            )
+                          );
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="text-left py-2 px-2">Date</th>
+                  <th className="text-left py-2 px-2">Name</th>
+                  <th className="text-right py-2 px-2">Amount</th>
+                  <th className="text-left py-2 px-2">Type</th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.slice(0, 20).map((t) => (
-                  <tr key={t.id} className="border-b last:border-0">
-                    <td className="py-1">{t.date}</td>
-                    <td className="py-1 truncate max-w-32">{t.name}</td>
-                    <td className="py-1 text-right">${t.amount.toFixed(2)}</td>
-                    <td className="py-1">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        t.type === 'bill' ? 'bg-red-100 text-red-800' :
-                        t.type === 'paycheck' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {t.type}
-                      </span>
+                {filteredAndSortedTransactions.map((t) => (
+                  <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <td className="py-2 px-2">
+                      <input
+                        type="checkbox"
+                        checked={t.selected}
+                        onChange={() => toggleTransactionSelection(t.id)}
+                      />
+                    </td>
+                    <td className="py-2 px-2">{t.date}</td>
+                    <td className="py-2 px-2 truncate max-w-32" title={t.name}>{t.name}</td>
+                    <td className="py-2 px-2 text-right">${t.amount.toFixed(2)}</td>
+                    <td className="py-2 px-2">
+                      <select
+                        value={t.type}
+                        onChange={(e) => updateTransactionType(t.id, e.target.value as any)}
+                        className={`px-2 py-1 rounded text-xs border-0 ${
+                          t.type === 'bill' ? 'bg-red-100 text-red-800' :
+                          t.type === 'paycheck' ? 'bg-green-100 text-green-800' :
+                          t.type === 'income' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        <option value="bill">Bill</option>
+                        <option value="paycheck">Paycheck</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                      </select>
                     </td>
                   </tr>
                 ))}
-                {transactions.length > 20 && (
-                  <tr>
-                    <td colSpan={4} className="py-2 text-center text-gray-500">
-                      ... and {transactions.length - 20} more transactions
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
+            {filteredAndSortedTransactions.length === 0 && (
+              <div className="py-8 text-center text-gray-500">
+                No transactions match your filters
+              </div>
+            )}
+          </div>
+
+          <div className="text-xs text-gray-500">
+            Showing {filteredAndSortedTransactions.length} of {transactions.length} transactions
           </div>
         </div>
       )}
