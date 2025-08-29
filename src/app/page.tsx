@@ -495,25 +495,25 @@ function ProjectionTable({
       <table className="min-w-full text-sm">
         <thead>
           <tr className="text-left border-b">
-            <th className="py-2 pr-4">Period</th>
-            <th className="py-2 pr-4">Start</th>
-            <th className="py-2 pr-4">End</th>
+            <th className="py-2 pr-4">Day</th>
+            <th className="py-2 pr-4">Date</th>
+            <th className="py-2 pr-4">Starting Balance</th>
             <th className="py-2 pr-4">Income</th>
-            <th className="py-2 pr-4">Bills</th>
-            <th className="py-2 pr-4">Carry Buffer</th>
+            <th className="py-2 pr-4">Expenses</th>
+            <th className="py-2 pr-4">Safe to Spend</th>
             <th className="py-2 pr-4">Safe to Save</th>
             <th className="py-2 pr-4">End Balance</th>
           </tr>
         </thead>
         <tbody>
-          {projection.periods.map((p) => (
-            <tr key={p.index} className="border-b last:border-0">
-              <td className="py-2 pr-4">{p.index + 1}</td>
-              <td className="py-2 pr-4">{p.startDate.slice(0, 10)}</td>
-              <td className="py-2 pr-4">{p.endDate.slice(0, 10)}</td>
+          {projection.periods.map((p, index) => (
+            <tr key={index} className="border-b last:border-0">
+              <td className="py-2 pr-4">{index + 1}</td>
+              <td className="py-2 pr-4">{p.date}</td>
+              <td className="py-2 pr-4">${p.startingBalance.toFixed(2)}</td>
               <td className="py-2 pr-4">${p.totalIncome.toFixed(2)}</td>
-              <td className="py-2 pr-4">-${p.totalBills.toFixed(2)}</td>
-              <td className="py-2 pr-4">${p.carryBufferNeeded.toFixed(2)}</td>
+              <td className="py-2 pr-4">-${p.totalExpenses.toFixed(2)}</td>
+              <td className="py-2 pr-4">${p.safeToSpend.toFixed(2)}</td>
               <td className="py-2 pr-4">${p.safeToSave.toFixed(2)}</td>
               <td className="py-2 pr-4">${p.endingBalance.toFixed(2)}</td>
             </tr>
