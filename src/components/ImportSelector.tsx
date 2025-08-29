@@ -5,15 +5,26 @@ import { Bill, Paycheck } from '@/lib/finance';
 import CSVImport from './CSVImport';
 import ManualEntry from './ManualEntry';
 import BankAPIImport from './BankAPIImport';
+import SimpleFINImport from './SimpleFINImport';
+
+interface SimpleFINAccount {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+}
 
 interface ImportSelectorProps {
   onBillsImported: (bills: Bill[]) => void;
   onPaychecksImported: (paychecks: Paycheck[]) => void;
+  onAccountsImported: (accounts: SimpleFINAccount[]) => void;
+  onTransactionsImported?: (transactions: any[]) => void;
+  onSelectedAccountChanged?: (account: SimpleFINAccount | null) => void;
 }
 
-type ImportMethod = 'csv' | 'manual' | 'bank';
+type ImportMethod = 'csv' | 'manual' | 'bank' | 'simplefin';
 
-export default function ImportSelector({ onBillsImported, onPaychecksImported }: ImportSelectorProps) {
+export default function ImportSelector({ onBillsImported, onPaychecksImported, onAccountsImported, onTransactionsImported, onSelectedAccountChanged }: ImportSelectorProps) {
   const [selectedMethod, setSelectedMethod] = useState<ImportMethod | null>(null);
 
 
@@ -69,6 +80,41 @@ export default function ImportSelector({ onBillsImported, onPaychecksImported }:
     );
   }
 
+  if (selectedMethod === 'simplefin') {
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => setSelectedMethod(null)}
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          ← Back to import options
+        </button>
+        <SimpleFINImport 
+          onBillsImported={(bills) => {
+            console.log('ImportSelector received SimpleFIN bills:', bills);
+            onBillsImported(bills);
+          }} 
+          onPaychecksImported={(paychecks) => {
+            console.log('ImportSelector received SimpleFIN paychecks:', paychecks);
+            onPaychecksImported(paychecks);
+          }}
+          onAccountsImported={(accounts) => {
+            console.log('ImportSelector received SimpleFIN accounts:', accounts);
+            onAccountsImported(accounts);
+          }}
+          onTransactionsImported={(transactions) => {
+            console.log('ImportSelector received SimpleFIN transactions:', transactions);
+            onTransactionsImported?.(transactions);
+          }}
+          onSelectedAccountChanged={(account) => {
+            console.log('ImportSelector received selected account:', account);
+            onSelectedAccountChanged?.(account);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="card space-y-6">
       <div className="text-center">
@@ -76,7 +122,7 @@ export default function ImportSelector({ onBillsImported, onPaychecksImported }:
         <p className="text-gray-600">Choose how you'd like to add your bills and paychecks</p>
       </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* CSV Import Option */}
         <div className="border border-gray-200 rounded-lg p-6 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
              onClick={() => setSelectedMethod('csv')}>
@@ -140,6 +186,27 @@ export default function ImportSelector({ onBillsImported, onPaychecksImported }:
            </div>
          </div>
 
+         {/* SimpleFIN Option */}
+         <div className="border border-gray-200 rounded-lg p-6 hover:border-purple-300 hover:shadow-md transition-all cursor-pointer"
+              onClick={() => setSelectedMethod('simplefin')}>
+           <div className="text-center">
+             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+               </svg>
+             </div>
+             <h3 className="font-semibold text-lg mb-2">SimpleFIN</h3>
+             <p className="text-sm text-gray-600 mb-4">
+               Connect directly to your bank using SimpleFIN protocol. Real-time transaction data.
+             </p>
+             <div className="text-xs text-gray-500 space-y-1">
+               <div>✅ Free and open-source</div>
+               <div>✅ Secure - no passwords shared</div>
+               <div>✅ Real-time data</div>
+               <div>✅ Many banks supported</div>
+             </div>
+           </div>
+         </div>
 
       </div>
 

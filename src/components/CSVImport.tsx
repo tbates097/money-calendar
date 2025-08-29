@@ -167,6 +167,7 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
         name: t.name,
         amount: Math.abs(t.amount),
         date: t.date,
+        type: 'bill' as const,
         recurring: false,
         schedule: null,
       }));
@@ -185,6 +186,7 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
         name: t.name,
         amount: Math.abs(t.amount),
         date: t.date,
+        type: 'paycheck' as const,
         recurring: false,
         schedule: null,
       }));
