@@ -56,7 +56,7 @@ function generateRecurringTransactions(transactions: Transaction[], endDate: Dat
   const transactionGroups = new Map<string, Transaction[]>();
   
   transactions.forEach(transaction => {
-    const key = `${transaction.name.toLowerCase()}-${transaction.type}`;
+    const key = `${(transaction.name || 'unknown').toLowerCase()}-${transaction.type}`;
     if (!transactionGroups.has(key)) {
       transactionGroups.set(key, []);
     }

@@ -200,7 +200,7 @@ export default function CSVImport({ onBillsImported, onPaychecksImported }: CSVI
   // Filter and sort transactions
   const filteredAndSortedTransactions = transactions
     .filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (t.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = filterType === 'all' || t.type === filterType;
       return matchesSearch && matchesFilter;
     })

@@ -444,7 +444,7 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
   // Filter and sort transactions
   const filteredAndSortedTransactions = transactions
     .filter(t => {
-      const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = (t.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = filterType === 'all' || t.type === filterType;
       const matchesAccount = selectedAccount === 'all' || t.account === selectedAccount;
       return matchesSearch && matchesFilter && matchesAccount;
