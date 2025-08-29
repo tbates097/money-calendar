@@ -123,8 +123,8 @@ export default function HomePage() {
     console.log('🧮 Computing projection with:', {
       transactionCount: transactions.length,
       transactionSources: {
-        simplefinTransactions: transactions.filter(t => t.id.startsWith('simplefin-')).length,
-        manualTransactions: transactions.filter(t => !t.id.startsWith('simplefin-')).length
+        simplefinTransactions: transactions.filter(t => t.id && t.id.startsWith('simplefin-')).length,
+        manualTransactions: transactions.filter(t => t.id && !t.id.startsWith('simplefin-')).length
       },
       effectiveStartingBalance,
       effectiveConfig
@@ -136,7 +136,7 @@ export default function HomePage() {
       amount: t.amount,
       date: t.date,
       type: t.type,
-      source: t.id.startsWith('simplefin-') ? 'SimpleFIN Selected' : 'Manual Entry'
+      source: t.id && t.id.startsWith('simplefin-') ? 'SimpleFIN Selected' : 'Manual Entry'
     })));
     
     const result = computeProjection({
@@ -277,9 +277,9 @@ export default function HomePage() {
               <div className="bg-blue-50 p-3 rounded-lg">
                 <div className="text-sm text-blue-800 mb-1">📊 Active Transactions</div>
                 <div className="text-blue-900 text-sm">
-                  {transactions.filter(t => t.id.startsWith('simplefin-')).length} selected from SimpleFIN
-                  {transactions.filter(t => !t.id.startsWith('simplefin-')).length > 0 && 
-                    ` + ${transactions.filter(t => !t.id.startsWith('simplefin-')).length} manually added`
+                  {transactions.filter(t => t.id && t.id.startsWith('simplefin-')).length} selected from SimpleFIN
+                  {transactions.filter(t => t.id && !t.id.startsWith('simplefin-')).length > 0 && 
+                    ` + ${transactions.filter(t => t.id && !t.id.startsWith('simplefin-')).length} manually added`
                   }
                 </div>
                 <div className="text-xs text-blue-600 mt-1">
@@ -309,7 +309,7 @@ export default function HomePage() {
                 className="bg-orange-50 text-orange-700 border-orange-200"
                 onClick={() => {
                   // Clear only SimpleFIN imported transactions (those with simplefin- prefix)
-                  setTransactions(prev => prev.filter(t => !t.id.startsWith('simplefin-')));
+                  setTransactions(prev => prev.filter(t => !t.id || !t.id.startsWith('simplefin-')));
                   console.log('SimpleFIN transactions cleared');
                 }}
               >
