@@ -1,19 +1,30 @@
 # Money Calendar
 
-A web application for planning bills, paychecks, and financial projections with automated bank data import via Plaid.
+A web application for planning bills, paychecks, and financial projections with **multi-device sync** and **SimpleFIN banking integration**.
 
 ## Features
 
-- **Bill & Paycheck Management**: Add and schedule recurring bills and paychecks
+### 🔐 **Multi-Device Sync**
+- **User Accounts**: Create an account to sync data across all your devices
+- **Automatic Backup**: Never lose your financial data again
+- **Guest Mode**: Try the app without an account (localStorage only)
+- **Secure Authentication**: Email/password with encrypted data storage
+
+### 💳 **Banking Integration**
+- **SimpleFIN Integration**: Connect your bank accounts securely
+- **Real-time Data**: Import transactions automatically
+- **Persistent Connections**: Bank connections sync across devices
+- **Transaction Filtering**: Smart filtering prevents duplicate imports
+
+### 📊 **Financial Planning**
+- **Bill & Paycheck Management**: Add and schedule recurring transactions
 - **Multiple Import Options**: 
-  - CSV upload from bank statements (free)
-  - Manual entry with recurring options (free)
-  - Sample data for testing (free)
-- **Smart Categorization**: Automatically identifies bills vs paychecks using keyword matching
-- **Financial Projections**: Project account balance up to 3 years with carry-over calculations
+  - SimpleFIN bank integration (recommended)
+  - CSV upload from bank statements
+  - Manual entry with recurring options
+- **Smart Categorization**: Automatically identifies bills vs paychecks
+- **Financial Projections**: Project account balance up to 3 years
 - **Safe-to-Save Calculator**: Determine how much you can safely save each pay period
-- **Data Persistence**: All data is stored locally in your browser
-- **No API Keys Required**: Completely free to use
 
 ## Setup
 
@@ -25,7 +36,19 @@ npm install
 
 ### 2. Environment Setup
 
-The app works completely without any API keys or external services. No environment variables are required!
+For local development with authentication:
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your values:
+DATABASE_URL="file:./dev.db"
+NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+**Guest Mode**: The app works without authentication - just visit the site and click "Continue as Guest"
 
 ### 3. Development
 
@@ -35,11 +58,19 @@ npm run dev
 
 Visit [çhttp://localhost:3000](http://localhost:3000)
 
-### 4. Deploy to Vercel
+### 4. Initialize Database (for authentication)
 
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Deploy! (No environment variables needed for the free features)
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Create and migrate database
+npx prisma db push
+```
+
+### 5. Deploy to Vercel
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions with authentication and database setup.
 
 ## Vercel GitHub Auto-Deploy Setup
 
