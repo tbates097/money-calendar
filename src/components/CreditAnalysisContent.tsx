@@ -107,15 +107,17 @@ export default function CreditAnalysisContent() {
       // Show all accounts - let user choose which are credit cards
       const allAccounts = data.accounts;
       
-      // Get all transactions and convert to positive amounts for spending analysis
-      const allTransactions = data.transactions.map((tx: any) => ({
-        id: `simplefin-${tx.id}`,
-        name: tx.memo || tx.name || 'Unknown Transaction',
-        amount: Math.abs(tx.amount || 0), // Always positive for spending analysis
-        date: tx.posted || tx.date || new Date().toISOString().slice(0, 10),
-        account: tx.account || 'unknown',
-        memo: tx.memo || ''
-      }));
+      // Get all transactions and filter for actual spending (negative amounts = charges)
+      const allTransactions = data.transactions
+        .filter((tx: any) => (tx.amount || 0) < 0) // Only include charges/purchases (negative amounts)
+        .map((tx: any) => ({
+          id: `simplefin-${tx.id}`,
+          name: tx.memo || tx.name || 'Unknown Transaction',
+          amount: Math.abs(tx.amount || 0), // Convert to positive for display
+          date: tx.posted || tx.date || new Date().toISOString().slice(0, 10),
+          account: tx.account || 'unknown',
+          memo: tx.memo || ''
+        }));
 
       setAccounts(allAccounts);
       setTransactions(allTransactions);
@@ -239,7 +241,7 @@ export default function CreditAnalysisContent() {
                   {editMode && <span className="text-lg text-purple-600 ml-3">✏️ Edit Mode</span>}
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  Analyze your spending patterns by category for any account
+                  Analyze your spending patterns by category for any account (payments and credits excluded)
                   {editMode && <span className="text-purple-600"> • Click on transactions to change their categories</span>}
                 </p>
               </div>
@@ -400,7 +402,8 @@ export default function CreditAnalysisContent() {
                 {categoryAnalysis.length === 0 ? (
                   <div className="p-8 text-center text-gray-500">
                     <div className="text-4xl mb-2">💳</div>
-                    <p>No transactions found for the selected account and time range.</p>
+                    <p>No spending transactions found for the selected account and time range.</p>
+                    <p className="text-xs mt-2">Note: Payments and credits are excluded from spending analysis.</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-200">
