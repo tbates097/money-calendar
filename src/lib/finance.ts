@@ -17,7 +17,8 @@ export type Paycheck = Transaction & { type: 'paycheck' };
 export type ScheduleConfig = {
   monthsToProject: number; // e.g., 12
   payPeriodDays: number; // e.g., 14
-  averagePaycheckAmount: number; // used for future periods when explicit checks missing
+  averagePaycheckAmount?: number; // used for future periods when explicit checks missing
+  safetyCushionDays?: number; // days of expenses to keep as safety buffer
 };
 
 export type RecurringSchedule = {
@@ -29,6 +30,7 @@ export const defaultScheduleConfig: ScheduleConfig = {
   monthsToProject: 12,
   payPeriodDays: 14,
   averagePaycheckAmount: 2000,
+  safetyCushionDays: 3,
 };
 
 export type DailyProjection = {

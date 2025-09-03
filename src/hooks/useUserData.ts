@@ -23,7 +23,7 @@ interface UserData {
 export function useUserData() {
   const { data: session, status } = useSession()
   const searchParams = useSearchParams()
-  const isGuestMode = searchParams?.get('guest') === 'true'
+  const isGuestMode = searchParams?.get('guest') === 'true' || false
 
   const [userData, setUserData] = useState<UserData>({
     transactions: [],
