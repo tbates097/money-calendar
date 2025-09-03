@@ -191,6 +191,23 @@ export default function CreditAnalysisContent() {
   const monthsInRange = parseInt(timeRange) / 30;
   const averageMonthlySpending = totalSpending / monthsInRange;
 
+  // Calculate actual date range of available data
+  const actualDateRange = useMemo(() => {
+    if (transactions.length === 0) return null;
+    
+    const dates = transactions.map(tx => new Date(tx.date));
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    const daysDiff = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return {
+      start: minDate,
+      end: maxDate,
+      days: daysDiff,
+      months: daysDiff / 30
+    };
+  }, [transactions]);
+
   // Category editing functions
   const updateTransactionCategory = (transactionId: string, newCategory: string) => {
     setCustomCategories(prev => ({
@@ -372,6 +389,25 @@ export default function CreditAnalysisContent() {
           {/* Summary Cards */}
           {!loading && !error && accounts.length > 0 && (
             <>
+              {/* Data Range Info */}
+              {actualDateRange && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-blue-900">📅 Actual Data Range</h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        {actualDateRange.start.toLocaleDateString()} to {actualDateRange.end.toLocaleDateString()} 
+                        <span className="font-medium"> ({actualDateRange.days} days)</span>
+                      </p>
+                    </div>
+                    <div className="text-right text-sm text-blue-600">
+                      <div>Requested: {timeRange} days</div>
+                      <div>Available: {actualDateRange.days} days</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-lg shadow">
                   <div className="text-sm font-medium text-gray-500">Total Spending</div>
@@ -382,7 +418,12 @@ export default function CreditAnalysisContent() {
                 <div className="bg-white p-6 rounded-lg shadow">
                   <div className="text-sm font-medium text-gray-500">Monthly Average</div>
                   <div className="text-2xl font-bold text-blue-600">${averageMonthlySpending.toFixed(2)}</div>
-                  <div className="text-xs text-gray-500 mt-1">Based on {monthsInRange.toFixed(1)} months</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {actualDateRange 
+                      ? `Based on ${actualDateRange.months.toFixed(1)} months of actual data`
+                      : `Based on ${monthsInRange.toFixed(1)} months`
+                    }
+                  </div>
                 </div>
                 
                 <div className="bg-white p-6 rounded-lg shadow">

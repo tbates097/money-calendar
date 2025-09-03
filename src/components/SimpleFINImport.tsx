@@ -177,7 +177,7 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
       
       setTransactions(newTransactions);
       setAccounts(data.accounts);
-      setSuccessMessage(`Successfully fetched ${newTransactions.length} transactions from ${latestImportDate.toISOString().slice(0, 10)} onward (${filteredCount} older transactions filtered)!`);
+      setSuccessMessage(`Successfully fetched ${allTransactions.length} total transactions. Showing ${newTransactions.length} from ${latestImportDate.toISOString().slice(0, 10)} onward (${filteredCount} older transactions filtered).`);
       setTimeout(() => setSuccessMessage(''), 5000);
       
       // Pass updated account data to parent component  
@@ -379,7 +379,7 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
       setConnectionStatus('connected');
       const newBankName = data.accounts.length > 0 ? `${data.accounts[0].name} (SimpleFIN)` : 'Connected Bank (SimpleFIN)';
       setBankName(newBankName);
-      setSuccessMessage(`Successfully connected! Found ${data.accounts.length} accounts and ${newTransactions.length} transactions from ${latestImportDate.toISOString().slice(0, 10)} onward.`);
+      setSuccessMessage(`Successfully connected! Found ${data.accounts.length} accounts with ${allTransactions.length} total transactions. Showing ${newTransactions.length} transactions from ${latestImportDate.toISOString().slice(0, 10)} onward.`);
       setTimeout(() => setSuccessMessage(''), 5000);
       
       // Pass account data to parent component
@@ -517,7 +517,7 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
             )}
             {connectionStatus === 'connected' && (
               <div className="text-xs text-blue-600 mt-1">
-                Fetching transactions from last 365 days
+                Fetching available transaction data (up to 1 year)
               </div>
             )}
           </div>
