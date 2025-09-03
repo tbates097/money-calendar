@@ -45,7 +45,12 @@ const CREDIT_CARD_CATEGORIES = {
   'Subscriptions': ['subscription', 'monthly', 'annual', 'membership', 'gym', 'fitness', 'club']
 };
 
-function categorizeTransaction(name: string, memo?: string): string {
+function categorizeTransaction(name: string, memo?: string, customCategories?: {[transactionId: string]: string}, transactionId?: string): string {
+  // Check if there's a custom category assignment first
+  if (customCategories && transactionId && customCategories[transactionId]) {
+    return customCategories[transactionId];
+  }
+  
   const searchText = `${name} ${memo || ''}`.toLowerCase();
   
   for (const [category, keywords] of Object.entries(CREDIT_CARD_CATEGORIES)) {
@@ -68,6 +73,10 @@ export default function CreditAnalysisContent() {
   const [error, setError] = useState<string>('');
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<'30' | '90' | '180' | '365'>('90');
+  const [editMode, setEditMode] = useState<boolean>(false);
+  const [customCategories, setCustomCategories] = useState<{[transactionId: string]: string}>({});
+  const [availableCategories, setAvailableCategories] = useState<string[]>(Object.keys(CREDIT_CARD_CATEGORIES));
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
 
   // Load credit card data from SimpleFIN
   const loadCreditCardData = async () => {
@@ -146,7 +155,7 @@ export default function CreditAnalysisContent() {
     const categoryMap = new Map<string, SimpleFINTransaction[]>();
     
     filteredTransactions.forEach(tx => {
-      const category = categorizeTransaction(tx.name, tx.memo);
+      const category = categorizeTransaction(tx.name, tx.memo, customCategories, tx.id);
       if (!categoryMap.has(category)) {
         categoryMap.set(category, []);
       }
@@ -173,11 +182,49 @@ export default function CreditAnalysisContent() {
     });
 
     return analysis.sort((a, b) => b.totalAmount - a.totalAmount);
-  }, [transactions, selectedAccount, timeRange]);
+  }, [transactions, selectedAccount, timeRange, customCategories]);
 
   const totalSpending = categoryAnalysis.reduce((sum, cat) => sum + cat.totalAmount, 0);
   const monthsInRange = parseInt(timeRange) / 30;
   const averageMonthlySpending = totalSpending / monthsInRange;
+
+  // Category editing functions
+  const updateTransactionCategory = (transactionId: string, newCategory: string) => {
+    setCustomCategories(prev => ({
+      ...prev,
+      [transactionId]: newCategory
+    }));
+  };
+
+  const addNewCategory = () => {
+    if (newCategoryName.trim() && !availableCategories.includes(newCategoryName.trim())) {
+      setAvailableCategories(prev => [...prev, newCategoryName.trim()]);
+      setNewCategoryName('');
+    }
+  };
+
+  const saveCustomCategories = () => {
+    // Save to localStorage for persistence
+    localStorage.setItem('customCategories', JSON.stringify(customCategories));
+    localStorage.setItem('availableCategories', JSON.stringify(availableCategories));
+    setEditMode(false);
+  };
+
+  const loadCustomCategories = () => {
+    const saved = localStorage.getItem('customCategories');
+    const savedAvailable = localStorage.getItem('availableCategories');
+    if (saved) {
+      setCustomCategories(JSON.parse(saved));
+    }
+    if (savedAvailable) {
+      setAvailableCategories(JSON.parse(savedAvailable));
+    }
+  };
+
+  // Load custom categories on mount
+  useEffect(() => {
+    loadCustomCategories();
+  }, []);
 
   return (
     <AuthWrapper>
@@ -187,8 +234,14 @@ export default function CreditAnalysisContent() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Spending Analysis</h1>
-                <p className="text-gray-600 mt-1">Analyze your spending patterns by category for any account</p>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  Spending Analysis
+                  {editMode && <span className="text-lg text-purple-600 ml-3">✏️ Edit Mode</span>}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Analyze your spending patterns by category for any account
+                  {editMode && <span className="text-purple-600"> • Click on transactions to change their categories</span>}
+                </p>
               </div>
               <Link 
                 href="/" 
@@ -234,7 +287,7 @@ export default function CreditAnalysisContent() {
                 </select>
               </div>
               
-              <div className="sm:self-end">
+              <div className="sm:self-end flex gap-2">
                 <button
                   onClick={loadCreditCardData}
                   disabled={loading}
@@ -242,8 +295,46 @@ export default function CreditAnalysisContent() {
                 >
                   {loading ? 'Refreshing...' : 'Refresh Data'}
                 </button>
+                <button
+                  onClick={() => editMode ? saveCustomCategories() : setEditMode(true)}
+                  className={`btn ${editMode ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'} text-white`}
+                >
+                  {editMode ? 'Save Changes' : 'Edit Categories'}
+                </button>
+                {editMode && (
+                  <button
+                    onClick={() => setEditMode(false)}
+                    className="btn bg-gray-600 text-white hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </div>
+            
+            {/* Add New Category */}
+            {editMode && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h3 className="font-medium text-blue-900 mb-2">Add New Category</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter new category name..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onKeyPress={(e) => e.key === 'Enter' && addNewCategory()}
+                  />
+                  <button
+                    onClick={addNewCategory}
+                    disabled={!newCategoryName.trim()}
+                    className="btn btn-primary disabled:opacity-50"
+                  >
+                    Add Category
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Error Message */}
@@ -342,21 +433,35 @@ export default function CreditAnalysisContent() {
                         {/* Recent transactions */}
                         <details className="group">
                           <summary className="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
-                            View recent transactions ({Math.min(5, category.transactions.length)} of {category.transactions.length})
+                            {editMode ? 'Edit transactions' : 'View recent transactions'} ({Math.min(editMode ? 10 : 5, category.transactions.length)} of {category.transactions.length})
                           </summary>
                           <div className="mt-3 space-y-2">
-                            {category.transactions.slice(0, 5).map((tx, txIndex) => (
+                            {category.transactions.slice(0, editMode ? 10 : 5).map((tx, txIndex) => (
                               <div key={txIndex} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded text-sm">
-                                <div>
+                                <div className="flex-1">
                                   <div className="font-medium">{tx.name}</div>
                                   <div className="text-xs text-gray-500">{new Date(tx.date).toLocaleDateString()}</div>
+                                  {editMode && (
+                                    <div className="mt-2">
+                                      <select
+                                        value={customCategories[tx.id] || categorizeTransaction(tx.name, tx.memo)}
+                                        onChange={(e) => updateTransactionCategory(tx.id, e.target.value)}
+                                        className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                      >
+                                        {availableCategories.map(cat => (
+                                          <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                        <option value="Other">Other</option>
+                                      </select>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="font-medium">${tx.amount.toFixed(2)}</div>
                               </div>
                             ))}
-                            {category.transactions.length > 5 && (
+                            {category.transactions.length > (editMode ? 10 : 5) && (
                               <div className="text-xs text-gray-500 text-center py-2">
-                                ... and {category.transactions.length - 5} more transactions
+                                ... and {category.transactions.length - (editMode ? 10 : 5)} more transactions
                               </div>
                             )}
                           </div>
