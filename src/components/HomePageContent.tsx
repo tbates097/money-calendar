@@ -11,6 +11,7 @@ import SimpleFINImport from "@/components/SimpleFINImport";
 import CalendarView from "@/components/CalendarView";
 import AuthWrapper from "@/components/AuthWrapper";
 import { useUserData } from "@/hooks/useUserData";
+import Link from "next/link";
 
 interface SimpleFINAccount {
   id: string;
@@ -140,7 +141,15 @@ export default function HomePageContent() {
   return (
     <AuthWrapper>
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Money Calendar</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Money Calendar</h1>
+          <Link 
+            href="/credit-analysis" 
+            className="btn bg-purple-600 text-white hover:bg-purple-700"
+          >
+            💳 Credit Card Analysis
+          </Link>
+        </div>
 
         <SimpleFINImport 
           existingTransactions={transactions}
@@ -326,20 +335,8 @@ export default function HomePageContent() {
           </div>
 
           <div className="card space-y-4">
-            <h2 className="text-lg font-semibold">Add Paycheck</h2>
-            <PaycheckForm
-              onAdd={(p) => {
-                const paycheckTransaction: Transaction = { ...p, type: 'paycheck' };
-                addTransactions([paycheckTransaction]);
-              }}
-              avgAmount={config.averagePaycheckAmount || 1000}
-              onUpdateAvg={(n) => saveData({ config: { ...config, averagePaycheckAmount: n } })}
-            />
-            <h2 className="text-lg font-semibold">Add Bill</h2>
-            <BillForm onAdd={(b) => {
-              const billTransaction: Transaction = { ...b, type: 'bill' };
-              addTransactions([billTransaction]);
-            }} />
+            <h2 className="text-lg font-semibold">Financial Statistics</h2>
+            <StatisticsSection transactions={transactions} />
           </div>
         </div>
 
@@ -380,100 +377,218 @@ export default function HomePageContent() {
   );
 }
 
-function PaycheckForm({
-  onAdd,
-  avgAmount,
-  onUpdateAvg,
-}: {
-  onAdd: (p: Paycheck) => void;
-  avgAmount: number;
-  onUpdateAvg: (n: number) => void;
-}) {
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState<number>(avgAmount);
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block mb-1">Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full" />
-        </div>
-        <div>
-          <label className="block mb-1">Amount</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full"
-          />
-        </div>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={() => onAdd({ 
-            id: `paycheck-${Date.now()}`,
-            name: "Paycheck",
-            date: new Date(date).toISOString(), 
-            amount,
-            type: 'paycheck',
-            recurring: false,
-            schedule: null
-          })}
-        >
-          Add Paycheck
-        </button>
-        <div className="ml-4 grid grid-cols-2 gap-2 items-center">
-          <label>Avg paycheck</label>
-          <input
-            type="number"
-            value={avgAmount}
-            onChange={(e) => onUpdateAvg(Number(e.target.value))}
-            className="w-full"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
+function StatisticsSection({ transactions }: { transactions: Transaction[] }) {
+  const stats = useMemo(() => {
+    if (transactions.length === 0) {
+      return {
+        monthlyAverages: { income: 0, bills: 0, expenses: 0, transfers: 0 },
+        totals: { income: 0, bills: 0, expenses: 0, transfers: 0 },
+        transactionCounts: { income: 0, bills: 0, expenses: 0, transfers: 0 },
+        dateRange: { start: null, end: null, months: 0 },
+        topCategories: { income: [], bills: [], expenses: [] },
+        trends: { avgTransactionSize: 0, netMonthly: 0 }
+      };
+    }
 
-function BillForm({ onAdd }: { onAdd: (b: Bill) => void }) {
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState<number>(100);
-  const [name, setName] = useState<string>("Bill");
+    // Calculate date range
+    const sortedDates = transactions.map(t => new Date(t.date)).sort((a, b) => a.getTime() - b.getTime());
+    const startDate = sortedDates[0];
+    const endDate = sortedDates[sortedDates.length - 1];
+    const monthsSpan = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+
+    // Categorize transactions
+    const income = transactions.filter(t => t.type === 'paycheck' || t.type === 'income' || (t.type === 'internal_transfer' && t.amount > 0));
+    const bills = transactions.filter(t => t.type === 'bill');
+    const expenses = transactions.filter(t => t.type === 'expense');
+    const transfers = transactions.filter(t => t.type === 'internal_transfer');
+
+    // Calculate totals
+    const incomeTotal = income.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const billsTotal = bills.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const expensesTotal = expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const transfersTotal = transfers.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Calculate monthly averages
+    const monthlyAverages = {
+      income: incomeTotal / monthsSpan,
+      bills: billsTotal / monthsSpan,
+      expenses: expensesTotal / monthsSpan,
+      transfers: transfersTotal / monthsSpan
+    };
+
+    // Top categories by frequency and amount
+    const getTopCategories = (transactionList: Transaction[]) => {
+      const categoryMap = new Map<string, { count: number; total: number }>();
+      
+      transactionList.forEach(t => {
+        const key = t.name.toLowerCase();
+        const existing = categoryMap.get(key) || { count: 0, total: 0 };
+        categoryMap.set(key, {
+          count: existing.count + 1,
+          total: existing.total + Math.abs(t.amount)
+        });
+      });
+
+      return Array.from(categoryMap.entries())
+        .map(([name, data]) => ({ name, ...data, avg: data.total / data.count }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+    };
+
+    return {
+      monthlyAverages,
+      totals: { income: incomeTotal, bills: billsTotal, expenses: expensesTotal, transfers: transfersTotal },
+      transactionCounts: { 
+        income: income.length, 
+        bills: bills.length, 
+        expenses: expenses.length, 
+        transfers: transfers.length 
+      },
+      dateRange: { 
+        start: startDate, 
+        end: endDate, 
+        months: monthsSpan 
+      },
+      topCategories: {
+        income: getTopCategories(income),
+        bills: getTopCategories(bills),
+        expenses: getTopCategories(expenses)
+      },
+      trends: {
+        avgTransactionSize: (incomeTotal + billsTotal + expensesTotal) / transactions.length,
+        netMonthly: monthlyAverages.income - monthlyAverages.bills - monthlyAverages.expenses
+      }
+    };
+  }, [transactions]);
+
+  if (transactions.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <div className="text-4xl mb-2">📊</div>
+        <p>Import transactions to see your financial statistics</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div>
-          <label className="block mb-1">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
-        </div>
-        <div>
-          <label className="block mb-1">Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full" />
-        </div>
-        <div>
-          <label className="block mb-1">Amount</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full"
-          />
+    <div className="space-y-6">
+      {/* Monthly Averages */}
+      <div>
+        <h3 className="font-medium text-gray-900 mb-3">Monthly Averages</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-green-50 p-3 rounded-lg">
+            <div className="text-sm text-green-700">Income</div>
+            <div className="text-lg font-semibold text-green-900">
+              ${stats.monthlyAverages.income.toFixed(0)}
+            </div>
+            <div className="text-xs text-green-600">
+              {stats.transactionCounts.income} transactions
+            </div>
+          </div>
+          <div className="bg-red-50 p-3 rounded-lg">
+            <div className="text-sm text-red-700">Bills</div>
+            <div className="text-lg font-semibold text-red-900">
+              ${stats.monthlyAverages.bills.toFixed(0)}
+            </div>
+            <div className="text-xs text-red-600">
+              {stats.transactionCounts.bills} transactions
+            </div>
+          </div>
+          <div className="bg-orange-50 p-3 rounded-lg">
+            <div className="text-sm text-orange-700">Expenses</div>
+            <div className="text-lg font-semibold text-orange-900">
+              ${stats.monthlyAverages.expenses.toFixed(0)}
+            </div>
+            <div className="text-xs text-orange-600">
+              {stats.transactionCounts.expenses} transactions
+            </div>
+          </div>
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <div className="text-sm text-blue-700">Net Monthly</div>
+            <div className={`text-lg font-semibold ${stats.trends.netMonthly >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+              ${stats.trends.netMonthly >= 0 ? '+' : ''}${stats.trends.netMonthly.toFixed(0)}
+            </div>
+            <div className="text-xs text-blue-600">
+              Income - Expenses
+            </div>
+          </div>
         </div>
       </div>
-      <button
-        onClick={() => onAdd({ 
-          id: `bill-${Date.now()}`,
-          name,
-          date: new Date(date).toISOString(), 
-          amount,
-          type: 'bill',
-          recurring: false,
-          schedule: null
-        })}
-      >
-        Add Bill
-      </button>
+
+      {/* Overview Stats */}
+      <div>
+        <h3 className="font-medium text-gray-900 mb-3">Overview</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <div className="text-sm text-gray-600">Data Period</div>
+            <div className="font-medium text-gray-900">
+              {stats.dateRange.months} month{stats.dateRange.months !== 1 ? 's' : ''}
+            </div>
+            <div className="text-xs text-gray-500">
+              {stats.dateRange.start?.toLocaleDateString()} - {stats.dateRange.end?.toLocaleDateString()}
+            </div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <div className="text-sm text-gray-600">Total Transactions</div>
+            <div className="font-medium text-gray-900">
+              {transactions.length}
+            </div>
+            <div className="text-xs text-gray-500">
+              Avg: ${stats.trends.avgTransactionSize.toFixed(0)} per transaction
+            </div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <div className="text-sm text-gray-600">SimpleFIN Connected</div>
+            <div className="font-medium text-gray-900">
+              {transactions.filter(t => t.id && t.id.startsWith('simplefin-')).length} transactions
+            </div>
+            <div className="text-xs text-gray-500">
+              {Math.round((transactions.filter(t => t.id && t.id.startsWith('simplefin-')).length / transactions.length) * 100)}% of total
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Categories */}
+      {stats.topCategories.bills.length > 0 && (
+        <div>
+          <h3 className="font-medium text-gray-900 mb-3">Top Bills</h3>
+          <div className="space-y-2">
+            {stats.topCategories.bills.slice(0, 3).map((category, index) => (
+              <div key={index} className="flex justify-between items-center py-2 px-3 bg-red-50 rounded">
+                <div>
+                  <div className="font-medium text-red-900 capitalize">{category.name}</div>
+                  <div className="text-xs text-red-600">{category.count} transactions</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-medium text-red-900">${category.total.toFixed(0)}</div>
+                  <div className="text-xs text-red-600">${category.avg.toFixed(0)} avg</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {stats.topCategories.income.length > 0 && (
+        <div>
+          <h3 className="font-medium text-gray-900 mb-3">Top Income Sources</h3>
+          <div className="space-y-2">
+            {stats.topCategories.income.slice(0, 3).map((category, index) => (
+              <div key={index} className="flex justify-between items-center py-2 px-3 bg-green-50 rounded">
+                <div>
+                  <div className="font-medium text-green-900 capitalize">{category.name}</div>
+                  <div className="text-xs text-green-600">{category.count} transactions</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-medium text-green-900">${category.total.toFixed(0)}</div>
+                  <div className="text-xs text-green-600">${category.avg.toFixed(0)} avg</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -232,3 +232,5 @@ coverage/
 **/*.swp
 
 /generated/prisma
+.vercel
+.env*.local
