@@ -155,7 +155,7 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
             const txDate = new Date(tx.date);
             return txDate > latest ? txDate : latest;
           }, new Date(0))
-        : new Date(0);
+        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // 90 days ago for fresh start
       
       console.log('🔍 Debug: existingTransactions count:', existingTransactions.length);
       console.log('📅 Latest import date from calendar:', latestImportDate.toISOString().slice(0, 10));
@@ -182,13 +182,6 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
       
       // Pass updated account data to parent component  
       onAccountsImported?.(data.accounts);
-      
-      // Only show transactions in UI if we have proper filtering state OR if there are no existing transactions at all
-      if (existingTransactions.length === 0) {
-        console.log('⚠️ No existing transactions provided - not showing any raw transactions yet (waiting for state)');
-        setTransactions([]); // Don't show any transactions until state is ready
-        return;
-      }
     } catch (err) {
       console.error('SimpleFIN data fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch data from SimpleFIN. Please try again.');
@@ -366,7 +359,7 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
             const txDate = new Date(tx.date);
             return txDate > latest ? txDate : latest;
           }, new Date(0))
-        : new Date(0);
+        : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000); // 90 days ago for fresh start
       
       console.log('🔍 Debug: existingTransactions count:', existingTransactions.length);
       console.log('📅 Latest import date from calendar:', latestImportDate.toISOString().slice(0, 10));
@@ -380,13 +373,6 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
       const filteredCount = allTransactions.length - newTransactions.length;
       
       console.log(`📊 Date-based filtering: ${allTransactions.length} total, ${filteredCount} before ${latestImportDate.toISOString().slice(0, 10)}, ${newTransactions.length} new/current`);
-
-      // Only show transactions if we have proper filtering state
-      if (existingTransactions.length === 0) {
-        console.log('⚠️ No existing transactions provided - not showing any raw transactions yet (waiting for state)');
-        setTransactions([]); // Don't show any transactions until state is ready
-        return;
-      }
 
       setTransactions(newTransactions);
       setAccounts(data.accounts);

@@ -33,7 +33,7 @@ The app works completely without any API keys or external services. No environme
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000)
+Visit [çhttp://localhost:3000](http://localhost:3000)
 
 ### 4. Deploy to Vercel
 

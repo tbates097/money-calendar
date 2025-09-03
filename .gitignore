@@ -230,3 +230,5 @@ pnpm-debug.log*
 # Misc
 coverage/
 **/*.swp
+
+/generated/prisma
