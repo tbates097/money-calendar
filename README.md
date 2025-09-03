@@ -61,12 +61,14 @@ Visit [çhttp://localhost:3000](http://localhost:3000)
 ### 4. Initialize Database (for authentication)
 
 ```bash
-# Generate Prisma client
+# Generate Prisma client (automatically runs during build)
 npx prisma generate
 
 # Create and migrate database
 npx prisma db push
 ```
+
+**Note**: The build process (`npm run build`) automatically runs `prisma generate`, so this is handled for you in development and deployment.
 
 ### 5. Deploy to Vercel
 

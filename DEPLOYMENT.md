@@ -60,28 +60,21 @@ Copy the output and use it as your `NEXTAUTH_SECRET`.
 
 #### 5. Database Migration
 
-After deployment, run the database migration:
+The build process now automatically generates the Prisma client. After your first deployment:
 
-1. Install Vercel CLI locally:
+1. Install Vercel CLI locally (optional, for manual database operations):
    ```bash
    npm i -g vercel
    ```
 
-2. Link your local project to Vercel:
+2. If you need to manually push the database schema:
    ```bash
    vercel link
-   ```
-
-3. Pull environment variables:
-   ```bash
    vercel env pull .env.local
-   ```
-
-4. Generate Prisma client and push schema:
-   ```bash
-   npx prisma generate
    npx prisma db push
    ```
+
+   **Note**: The database schema will be automatically created when your app first connects to the database.
 
 #### 6. Redeploy
 
