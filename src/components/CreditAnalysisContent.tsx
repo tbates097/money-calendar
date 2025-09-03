@@ -208,6 +208,81 @@ export default function CreditAnalysisContent() {
     };
   }, [transactions]);
 
+  // Calculate top transactions and recurring vendor analysis
+  const topTransactionsAnalysis = useMemo(() => {
+    if (transactions.length === 0) return { topTransactions: [], recurringVendors: [] };
+
+    // Filter by selected account and time range
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(timeRange));
+    
+    const filteredTransactions = transactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      const matchesAccount = selectedAccount === 'all' || tx.account === selectedAccount;
+      const withinTimeRange = txDate >= cutoffDate;
+      return matchesAccount && withinTimeRange;
+    });
+
+    // Get top 10 most expensive individual transactions
+    const topTransactions = [...filteredTransactions]
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 10)
+      .map(tx => ({
+        ...tx,
+        category: categorizeTransaction(tx.name, tx.memo, customCategories, tx.id)
+      }));
+
+    // Analyze recurring vendors (normalize vendor names)
+    const vendorMap = new Map<string, {
+      transactions: SimpleFINTransaction[];
+      totalAmount: number;
+      count: number;
+      averageAmount: number;
+      category: string;
+    }>();
+
+    filteredTransactions.forEach(tx => {
+      // Normalize vendor name (remove numbers, common suffixes, etc.)
+      const normalizedName = tx.name
+        .toLowerCase()
+        .replace(/\s*#\d+.*$/, '') // Remove transaction numbers like "#1234"
+        .replace(/\s*\d{2}\/\d{2}\/\d{4}.*$/, '') // Remove dates
+        .replace(/\s*\d{2}\/\d{2}.*$/, '') // Remove short dates
+        .replace(/\s*-.*$/, '') // Remove everything after dash
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .trim();
+
+      if (!vendorMap.has(normalizedName)) {
+        vendorMap.set(normalizedName, {
+          transactions: [],
+          totalAmount: 0,
+          count: 0,
+          averageAmount: 0,
+          category: categorizeTransaction(tx.name, tx.memo, customCategories, tx.id)
+        });
+      }
+
+      const vendor = vendorMap.get(normalizedName)!;
+      vendor.transactions.push(tx);
+      vendor.totalAmount += tx.amount;
+      vendor.count += 1;
+      vendor.averageAmount = vendor.totalAmount / vendor.count;
+    });
+
+    // Get recurring vendors (2+ transactions) sorted by total amount
+    const recurringVendors = Array.from(vendorMap.entries())
+      .filter(([_, vendor]) => vendor.count >= 2)
+      .map(([name, vendor]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalize first letter
+        ...vendor,
+        originalName: vendor.transactions[0].name // Keep one original name for reference
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, 10);
+
+    return { topTransactions, recurringVendors };
+  }, [transactions, selectedAccount, timeRange, customCategories]);
+
   // Category editing functions
   const updateTransactionCategory = (transactionId: string, newCategory: string) => {
     setCustomCategories(prev => ({
@@ -440,6 +515,83 @@ export default function CreditAnalysisContent() {
                   <div className="text-sm font-medium text-gray-500">Categories</div>
                   <div className="text-2xl font-bold text-purple-600">{categoryAnalysis.length}</div>
                   <div className="text-xs text-gray-500 mt-1">Spending categories found</div>
+                </div>
+              </div>
+
+              {/* Top Transactions Analysis */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                {/* Top Individual Transactions */}
+                <div className="bg-white rounded-lg shadow">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-lg font-semibold text-gray-900">🏆 Top 10 Transactions</h2>
+                    <p className="text-sm text-gray-500">Highest individual purchases</p>
+                  </div>
+                  <div className="p-6">
+                    {topTransactionsAnalysis.topTransactions.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">💳</div>
+                        <p>No transactions found</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {topTransactionsAnalysis.topTransactions.map((tx, index) => (
+                          <div key={index} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-500 w-6">#{index + 1}</span>
+                                <div>
+                                  <div className="font-medium text-gray-900">{tx.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(tx.date).toLocaleDateString()} • {tx.category}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-lg font-bold text-gray-900">${tx.amount.toFixed(2)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recurring Vendors */}
+                <div className="bg-white rounded-lg shadow">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-lg font-semibold text-gray-900">🔄 Recurring Vendors</h2>
+                    <p className="text-sm text-gray-500">Total spending by vendor (2+ transactions)</p>
+                  </div>
+                  <div className="p-6">
+                    {topTransactionsAnalysis.recurringVendors.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">🏪</div>
+                        <p>No recurring vendors found</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {topTransactionsAnalysis.recurringVendors.map((vendor, index) => (
+                          <div key={index} className="py-2 px-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-500 w-6">#{index + 1}</span>
+                                <div>
+                                  <div className="font-medium text-gray-900">{vendor.name}</div>
+                                  <div className="text-xs text-gray-500">{vendor.category}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-lg font-bold text-gray-900">${vendor.totalAmount.toFixed(2)}</div>
+                                <div className="text-xs text-gray-500">{vendor.count} transactions</div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-2">
+                              Average: ${vendor.averageAmount.toFixed(2)} per transaction
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
