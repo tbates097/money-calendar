@@ -77,6 +77,7 @@ export default function CreditAnalysisContent() {
   const [customCategories, setCustomCategories] = useState<{[transactionId: string]: string}>({});
   const [availableCategories, setAvailableCategories] = useState<string[]>(Object.keys(CREDIT_CARD_CATEGORIES));
   const [newCategoryName, setNewCategoryName] = useState<string>('');
+  const [expandedCategories, setExpandedCategories] = useState<{[categoryName: string]: boolean}>({});
 
   // Load credit card data from SimpleFIN
   const loadCreditCardData = async () => {
@@ -221,6 +222,14 @@ export default function CreditAnalysisContent() {
     if (savedAvailable) {
       setAvailableCategories(JSON.parse(savedAvailable));
     }
+  };
+
+  // Toggle category expansion
+  const toggleCategoryExpansion = (categoryName: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryName]: !prev[categoryName]
+    }));
   };
 
   // Load custom categories on mount
@@ -436,37 +445,57 @@ export default function CreditAnalysisContent() {
                         {/* Recent transactions */}
                         <details className="group">
                           <summary className="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
-                            {editMode ? 'Edit transactions' : 'View recent transactions'} ({Math.min(editMode ? 10 : 5, category.transactions.length)} of {category.transactions.length})
+                            {editMode ? 'Edit transactions' : 'View transactions'} ({category.transactions.length} total)
                           </summary>
                           <div className="mt-3 space-y-2">
-                            {category.transactions.slice(0, editMode ? 10 : 5).map((tx, txIndex) => (
-                              <div key={txIndex} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded text-sm">
-                                <div className="flex-1">
-                                  <div className="font-medium">{tx.name}</div>
-                                  <div className="text-xs text-gray-500">{new Date(tx.date).toLocaleDateString()}</div>
-                                  {editMode && (
-                                    <div className="mt-2">
-                                      <select
-                                        value={customCategories[tx.id] || categorizeTransaction(tx.name, tx.memo)}
-                                        onChange={(e) => updateTransactionCategory(tx.id, e.target.value)}
-                                        className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            {(() => {
+                              const isExpanded = expandedCategories[category.category];
+                              const defaultLimit = editMode ? 10 : 5;
+                              const transactionsToShow = isExpanded ? category.transactions : category.transactions.slice(0, defaultLimit);
+                              
+                              return (
+                                <>
+                                  {transactionsToShow.map((tx, txIndex) => (
+                                    <div key={txIndex} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded text-sm">
+                                      <div className="flex-1">
+                                        <div className="font-medium">{tx.name}</div>
+                                        <div className="text-xs text-gray-500">{new Date(tx.date).toLocaleDateString()}</div>
+                                        {editMode && (
+                                          <div className="mt-2">
+                                            <select
+                                              value={customCategories[tx.id] || categorizeTransaction(tx.name, tx.memo)}
+                                              onChange={(e) => updateTransactionCategory(tx.id, e.target.value)}
+                                              className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                            >
+                                              {availableCategories.map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                              ))}
+                                              <option value="Other">Other</option>
+                                            </select>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="font-medium">${tx.amount.toFixed(2)}</div>
+                                    </div>
+                                  ))}
+                                  
+                                  {/* Show All / Show Less button */}
+                                  {category.transactions.length > defaultLimit && (
+                                    <div className="text-center py-2">
+                                      <button
+                                        onClick={() => toggleCategoryExpansion(category.category)}
+                                        className="text-xs text-blue-600 hover:text-blue-800 underline"
                                       >
-                                        {availableCategories.map(cat => (
-                                          <option key={cat} value={cat}>{cat}</option>
-                                        ))}
-                                        <option value="Other">Other</option>
-                                      </select>
+                                        {isExpanded 
+                                          ? `Show Less (${defaultLimit} of ${category.transactions.length})`
+                                          : `Show All ${category.transactions.length} Transactions`
+                                        }
+                                      </button>
                                     </div>
                                   )}
-                                </div>
-                                <div className="font-medium">${tx.amount.toFixed(2)}</div>
-                              </div>
-                            ))}
-                            {category.transactions.length > (editMode ? 10 : 5) && (
-                              <div className="text-xs text-gray-500 text-center py-2">
-                                ... and {category.transactions.length - (editMode ? 10 : 5)} more transactions
-                              </div>
-                            )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </details>
                       </div>
