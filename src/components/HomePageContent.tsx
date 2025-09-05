@@ -366,25 +366,33 @@ export default function HomePageContent() {
                 console.log('📝 Transaction edit requested:', { editedTransaction, applyToFuture });
                 
                 // Find and update the transaction
+                // For recurring transactions, the editedTransaction.id might have a suffix like "-future-0"
+                // but the base transaction has the original ID without the suffix
+                const baseId = editedTransaction.id.replace(/-future-\d+$/, '');
+                console.log('🔍 Looking for transaction to update:', { 
+                  editedId: editedTransaction.id, 
+                  baseId: baseId,
+                  editedTransaction 
+                });
+                
                 const updatedTransactions = transactions.map(tx => {
-                  if (tx.id === editedTransaction.id) {
+                  // Try to match by exact ID first, then by base ID
+                  if (tx.id === editedTransaction.id || tx.id === baseId) {
                     // Update this specific transaction
-                    const updatedTx = { ...tx, ...editedTransaction };
-                    console.log('📝 Updating transaction:', { old: tx, new: updatedTx });
+                    const updatedTx = { ...tx, ...editedTransaction, id: tx.id }; // Keep original ID
+                    console.log('📝 Updating transaction by ID match:', { old: tx, new: updatedTx });
                     return updatedTx;
                   }
                   
-                  // If applyToFuture is true and this is a recurring transaction, update future instances
-                  if (applyToFuture && tx.name === editedTransaction.name && tx.type === editedTransaction.type) {
+                  // If applyToFuture is true, update by name/type matching for recurring transactions
+                  if (applyToFuture && tx.name === editedTransaction.name && tx.type === editedTransaction.type && tx.recurring) {
                     const txDate = new Date(tx.date);
                     const editedDate = new Date(editedTransaction.date);
                     
-                    // Update future instances of the same recurring transaction
-                    if (txDate >= editedDate && tx.recurring) {
-                      const updatedTx = { ...tx, amount: editedTransaction.amount };
-                      console.log('📝 Updating future recurring transaction:', { old: tx, new: updatedTx });
-                      return updatedTx;
-                    }
+                    // Update the base recurring transaction pattern
+                    const updatedTx = { ...tx, amount: editedTransaction.amount, date: editedTransaction.date };
+                    console.log('📝 Updating recurring transaction pattern:', { old: tx, new: updatedTx });
+                    return updatedTx;
                   }
                   
                   return tx;

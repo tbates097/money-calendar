@@ -308,18 +308,18 @@ export default function CalendarView({ projection, onTransactionEdit }: Calendar
                             {transaction.type === 'paycheck' || transaction.type === 'income' || (transaction.type === 'internal_transfer' && transaction.amount > 0)
                               ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                           </span>
-                          {transaction.recurring && !dayProjection.isHistorical && (
+                          {!dayProjection.isHistorical && (
                             <button
                               onClick={() => {
                                 setEditingTransaction({transaction, date: selectedDay.date});
                                 setEditForm({
                                   amount: transaction.amount,
                                   date: selectedDay.date,
-                                  applyToFuture: false
+                                  applyToFuture: transaction.recurring
                                 });
                               }}
                               className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-800 text-xs transition-opacity"
-                              title="Edit recurring transaction"
+                              title={`Edit ${transaction.recurring ? 'recurring ' : ''}transaction`}
                             >
                               ✏️
                             </button>
@@ -359,7 +359,9 @@ export default function CalendarView({ projection, onTransactionEdit }: Calendar
       {editingTransaction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96 max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Edit Recurring Transaction</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Edit {editingTransaction.transaction.recurring ? 'Recurring ' : ''}Transaction
+            </h3>
             
             <div className="space-y-4">
               <div>
@@ -390,29 +392,31 @@ export default function CalendarView({ projection, onTransactionEdit }: Calendar
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-2">Apply changes to:</label>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      checked={!editForm.applyToFuture}
-                      onChange={() => setEditForm(prev => ({...prev, applyToFuture: false}))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">This instance only</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      checked={editForm.applyToFuture}
-                      onChange={() => setEditForm(prev => ({...prev, applyToFuture: true}))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">This date forward (update pattern)</span>
-                  </label>
+              {editingTransaction.transaction.recurring && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Apply changes to:</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        checked={!editForm.applyToFuture}
+                        onChange={() => setEditForm(prev => ({...prev, applyToFuture: false}))}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">This instance only</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        checked={editForm.applyToFuture}
+                        onChange={() => setEditForm(prev => ({...prev, applyToFuture: true}))}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">This date forward (update pattern)</span>
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             
             <div className="flex gap-3 mt-6">
