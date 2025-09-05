@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ 
       customCategories: categoriesMap,
-      latestUpdateDate: latestUpdateDate?.toISOString() || null
+      latestUpdateDate: latestUpdateDate ? latestUpdateDate.toISOString() : null
     })
   } catch (error) {
     console.error('Get custom categories error:', error)
