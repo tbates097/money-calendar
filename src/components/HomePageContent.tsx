@@ -364,8 +364,35 @@ export default function HomePageContent() {
               projection={projection.periods} 
               onTransactionEdit={(editedTransaction, applyToFuture) => {
                 console.log('📝 Transaction edit requested:', { editedTransaction, applyToFuture });
-                // TODO: Implement transaction editing logic
-                // For now, just log the edit request
+                
+                // Find and update the transaction
+                const updatedTransactions = transactions.map(tx => {
+                  if (tx.id === editedTransaction.id) {
+                    // Update this specific transaction
+                    const updatedTx = { ...tx, ...editedTransaction };
+                    console.log('📝 Updating transaction:', { old: tx, new: updatedTx });
+                    return updatedTx;
+                  }
+                  
+                  // If applyToFuture is true and this is a recurring transaction, update future instances
+                  if (applyToFuture && tx.name === editedTransaction.name && tx.type === editedTransaction.type) {
+                    const txDate = new Date(tx.date);
+                    const editedDate = new Date(editedTransaction.date);
+                    
+                    // Update future instances of the same recurring transaction
+                    if (txDate >= editedDate && tx.recurring) {
+                      const updatedTx = { ...tx, amount: editedTransaction.amount };
+                      console.log('📝 Updating future recurring transaction:', { old: tx, new: updatedTx });
+                      return updatedTx;
+                    }
+                  }
+                  
+                  return tx;
+                });
+                
+                // Save the updated transactions by replacing the entire transaction list
+                console.log('💾 Saving updated transactions to data store');
+                saveData({ transactions: updatedTransactions });
               }}
             />
           ) : (
