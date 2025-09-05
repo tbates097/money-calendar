@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 interface SimpleFINRequest {
-  token: string;
+  token?: string;
   accessToken?: string; // Added for new logic
 }
 
@@ -28,15 +31,35 @@ interface SimpleFINResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
     const { token, accessToken }: SimpleFINRequest = await request.json();
 
-    // If we have an access token, use it directly
+    // For authenticated users, try to get stored connection first
+    if (session?.user?.id && !token && !accessToken) {
+      console.log('Checking for stored SimpleFIN connection...');
+      
+      const connection = await prisma.simplefinConnection.findUnique({
+        where: { userId: session.user.id }
+      });
+
+      if (connection && connection.isActive && connection.accessUrl) {
+        console.log('Using stored database access token');
+        // Update last sync time
+        await prisma.simplefinConnection.update({
+          where: { userId: session.user.id },
+          data: { lastSyncAt: new Date() }
+        });
+        return await fetchDataWithAccessToken(connection.accessUrl);
+      }
+    }
+
+    // If we have an access token passed directly, use it
     if (accessToken) {
-      console.log('Using stored access token');
+      console.log('Using provided access token');
       return await fetchDataWithAccessToken(accessToken);
     }
 
-    // Otherwise, we need a setup token
+    // Otherwise, we need a setup token to create a new connection
     if (!token) {
       return NextResponse.json(
         { error: 'SimpleFIN token or access token is required' },
@@ -79,7 +102,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Use Access Token to fetch data
-    return await fetchDataWithAccessToken(accessUrl);
+    const result = await fetchDataWithAccessToken(accessUrl);
+    
+    // For authenticated users, save the connection to database
+    if (session?.user?.id && result.ok) {
+      try {
+        const resultData = await result.json();
+        const bankName = resultData.accounts && resultData.accounts.length > 0 
+          ? `${resultData.accounts[0].name} (SimpleFIN)` 
+          : 'Connected Bank (SimpleFIN)';
+          
+        await prisma.simplefinConnection.upsert({
+          where: { userId: session.user.id },
+          update: {
+            accessUrl,
+            bankName,
+            isActive: true,
+            lastSyncAt: new Date()
+          },
+          create: {
+            userId: session.user.id,
+            accessUrl,
+            bankName,
+            isActive: true,
+            lastSyncAt: new Date()
+          }
+        });
+        
+        console.log('Saved SimpleFIN connection to database for user:', session.user.id);
+        
+        // Return the result data
+        return NextResponse.json(resultData);
+      } catch (dbError) {
+        console.error('Failed to save SimpleFIN connection to database:', dbError);
+        // Still return the result even if database save failed
+        return result;
+      }
+    }
+    
+    return result;
 
   } catch (error) {
     console.error('SimpleFIN fetch error:', error);

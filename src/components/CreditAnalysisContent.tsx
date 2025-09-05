@@ -85,19 +85,35 @@ export default function CreditAnalysisContent() {
     setError('');
     
     try {
-      const storedAccessUrl = localStorage.getItem('simplefin_access_url');
-      if (!storedAccessUrl) {
-        setError('No SimpleFIN connection found. Please connect to SimpleFIN from the main Money Calendar page first.');
-        return;
-      }
+      let response;
+      
+      if (session?.user?.id && !isGuestMode) {
+        // Authenticated user - let API check database first
+        console.log('Loading credit card data for authenticated user...');
+        response = await fetch('/api/simplefin/fetch-data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}), // Empty body - API will check database
+        });
+      } else {
+        // Guest mode - check localStorage
+        const storedAccessUrl = localStorage.getItem('simplefin_access_url');
+        if (!storedAccessUrl) {
+          setError('No SimpleFIN connection found. Please connect to SimpleFIN from the main Money Calendar page first.');
+          return;
+        }
 
-      const response = await fetch('/api/simplefin/fetch-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ accessToken: storedAccessUrl }),
-      });
+        console.log('Loading credit card data from localStorage...');
+        response = await fetch('/api/simplefin/fetch-data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ accessToken: storedAccessUrl }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.statusText}`);

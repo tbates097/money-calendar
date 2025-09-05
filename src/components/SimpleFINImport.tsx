@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { Bill, Paycheck } from '@/lib/finance';
 
 interface SimpleFINImportProps {
@@ -80,6 +81,7 @@ function categorizeTransaction(name: string, amount: number): 'bill' | 'paycheck
 }
 
 export default function SimpleFINImport({ onBillsImported, onPaychecksImported, onAccountsImported, onTransactionsImported, onSelectedAccountChanged, existingTransactions = [] }: SimpleFINImportProps) {
+  const { data: session, status } = useSession();
   const [transactions, setTransactions] = useState<SimpleFINTransaction[]>([]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -195,30 +197,110 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
     }
   }, [importedTransactionIds]);
 
-  // Check for stored access URL on component mount
+  // Check for stored connection on component mount
   useEffect(() => {
-    const storedAccessUrl = localStorage.getItem('simplefin_access_url');
-    const storedBankName = localStorage.getItem('simplefin_bank_name');
-    
-    console.log('SimpleFIN Auto-reconnect check:', { storedAccessUrl: storedAccessUrl ? 'Found' : 'Not found', storedBankName });
-    
-    if (storedAccessUrl && storedBankName) {
-      console.log('Auto-reconnecting with stored access URL...');
-      setConnectionStatus('connected');
-      setBankName(storedBankName);
-      // Auto-fetch transactions on page load to restore previous session
-      fetchDataWithAccessToken(storedAccessUrl);
-    } else {
-      console.log('No stored access URL found, showing connection form');
-    }
-  }, [fetchDataWithAccessToken]);
+    const checkStoredConnection = async () => {
+      if (status === 'loading') return; // Wait for session to load
+      
+      if (session?.user?.id) {
+        // Authenticated user - check database first
+        console.log('Checking database for stored SimpleFIN connection...');
+        try {
+          const response = await fetch('/api/simplefin/connection');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.connection && data.connection.accessUrl) {
+              console.log('Found stored connection in database, auto-connecting...');
+              setConnectionStatus('connected');
+              setBankName(data.connection.bankName);
+              // Auto-fetch transactions using stored connection
+              await fetchDataWithAccessToken(data.connection.accessUrl);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check database connection:', error);
+        }
+        console.log('No database connection found, showing connection form');
+      } else {
+        // Guest mode - check localStorage
+        const storedAccessUrl = localStorage.getItem('simplefin_access_url');
+        const storedBankName = localStorage.getItem('simplefin_bank_name');
+        
+        console.log('Guest mode - checking localStorage:', { storedAccessUrl: storedAccessUrl ? 'Found' : 'Not found', storedBankName });
+        
+        if (storedAccessUrl && storedBankName) {
+          console.log('Auto-reconnecting with stored localStorage access URL...');
+          setConnectionStatus('connected');
+          setBankName(storedBankName);
+          // Auto-fetch transactions on page load to restore previous session
+          await fetchDataWithAccessToken(storedAccessUrl);
+          return;
+        }
+        console.log('No localStorage connection found, showing connection form');
+      }
+    };
+
+    checkStoredConnection();
+  }, [session, status, fetchDataWithAccessToken]);
 
   const getRecentTransactions = async () => {
-    const storedAccessUrl = localStorage.getItem('simplefin_access_url');
-    if (storedAccessUrl) {
-      await fetchDataWithAccessToken(storedAccessUrl);
+    if (session?.user?.id) {
+      // Authenticated user - use database or make API call without parameters (it will check database)
+      console.log('Fetching recent transactions for authenticated user...');
+      try {
+        const response = await fetch('/api/simplefin/fetch-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}) // Empty body - API will check database
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch data: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        // Process the data same way as fetchDataWithAccessToken
+        const allTransactions: SimpleFINTransaction[] = data.transactions.map((tx: any, index: number) => ({
+          id: `simplefin-${tx.id || index}`,
+          name: tx.memo || tx.name || 'Unknown Transaction',
+          amount: tx.amount || 0,
+          date: tx.posted || tx.date || new Date().toISOString().slice(0, 10),
+          type: categorizeTransaction(tx.memo || tx.name || '', tx.amount || 0),
+          selected: true,
+          account: tx.account || 'unknown'
+        }));
+
+        // Apply same filtering logic
+        const latestImportDate = existingTransactions.length > 0 
+          ? existingTransactions.reduce((latest, tx) => {
+              const txDate = new Date(tx.date);
+              return txDate > latest ? txDate : latest;
+            }, new Date(0))
+          : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        
+        const newTransactions = allTransactions.filter(tx => {
+          const txDate = new Date(tx.date);
+          return txDate >= latestImportDate;
+        });
+        
+        setTransactions(newTransactions);
+        setAccounts(data.accounts);
+        onAccountsImported?.(data.accounts);
+        
+      } catch (err) {
+        console.error('Failed to fetch recent transactions:', err);
+        setError('Failed to fetch recent transactions. Please try again.');
+      }
     } else {
-      setError('No stored access token found. Please reconnect.');
+      // Guest mode - use localStorage
+      const storedAccessUrl = localStorage.getItem('simplefin_access_url');
+      if (storedAccessUrl) {
+        await fetchDataWithAccessToken(storedAccessUrl);
+      } else {
+        setError('No stored access token found. Please reconnect.');
+      }
     }
   };
 
@@ -385,11 +467,18 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
       // Pass account data to parent component
       onAccountsImported?.(data.accounts);
       
-      // Store access URL for auto-reconnection (not the setup token)
+      // Store access URL for auto-reconnection
       if (data.accessUrl) {
         console.log('Storing access URL for future use');
-        localStorage.setItem('simplefin_access_url', data.accessUrl);
-        localStorage.setItem('simplefin_bank_name', newBankName);
+        
+        if (session?.user?.id) {
+          // Authenticated user - save to database (API already handles this)
+          console.log('Connection saved to database by API');
+        } else {
+          // Guest mode - save to localStorage
+          localStorage.setItem('simplefin_access_url', data.accessUrl);
+          localStorage.setItem('simplefin_bank_name', newBankName);
+        }
       } else {
         console.error('No accessUrl received from API - cannot enable auto-reconnection');
       }
@@ -402,16 +491,31 @@ export default function SimpleFINImport({ onBillsImported, onPaychecksImported, 
     }
   };
 
-  const disconnectFromSimpleFIN = () => {
+  const disconnectFromSimpleFIN = async () => {
     setTransactions([]);
     setAccounts([]);
     setConnectionStatus('disconnected');
     setBankName('');
     setConnectionToken('');
-    setSuccessMessage('Disconnected from SimpleFIN');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    
+    if (session?.user?.id) {
+      // Authenticated user - remove from database
+      try {
+        await fetch('/api/simplefin/connection', {
+          method: 'DELETE'
+        });
+        console.log('Removed SimpleFIN connection from database');
+      } catch (error) {
+        console.error('Failed to remove SimpleFIN connection from database:', error);
+      }
+    }
+    
+    // Also remove from localStorage (for guest mode or as backup)
     localStorage.removeItem('simplefin_access_url');
     localStorage.removeItem('simplefin_bank_name');
+    
+    setSuccessMessage('Disconnected from SimpleFIN');
+    setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   const resetImportedTransactions = () => {
