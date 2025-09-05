@@ -6,6 +6,7 @@ import { DailyProjection, Transaction } from '@/lib/finance';
 interface CalendarViewProps {
   projection: DailyProjection[];
   onTransactionEdit?: (editedTransaction: Transaction, applyToFuture: boolean) => void;
+  onRefresh?: () => void;
 }
 
 interface DayData {
@@ -19,7 +20,7 @@ interface DayData {
   isHistorical: boolean;
 }
 
-export default function CalendarView({ projection, onTransactionEdit }: CalendarViewProps) {
+export default function CalendarView({ projection, onTransactionEdit, onRefresh }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [refreshKey, setRefreshKey] = useState(Date.now()); // Force refresh with timestamp
@@ -191,7 +192,12 @@ export default function CalendarView({ projection, onTransactionEdit }: Calendar
             →
           </button>
           <button 
-            onClick={() => setRefreshKey(Date.now())}
+            onClick={() => {
+              setRefreshKey(Date.now());
+              if (onRefresh) {
+                onRefresh();
+              }
+            }}
             className="px-3 py-1 rounded hover:bg-gray-100 text-xs"
           >
             🔄 Refresh

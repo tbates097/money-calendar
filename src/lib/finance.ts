@@ -54,130 +54,79 @@ function generateRecurringTransactions(transactions: Transaction[], endDate: Dat
   const today = startOfDay(now);
   const recurringTransactions: Transaction[] = [];
   
-  // Group transactions by name and type to detect patterns
-  const transactionGroups = new Map<string, Transaction[]>();
-  
-  transactions.forEach(transaction => {
-    const key = `${(transaction.name || 'unknown').toLowerCase()}-${transaction.type}`;
-    if (!transactionGroups.has(key)) {
-      transactionGroups.set(key, []);
+  // Helper function to move weekends to Monday
+  function adjustForWeekend(date: Date): Date {
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+    if (dayOfWeek === 0) { // Sunday
+      date.setDate(date.getDate() + 1); // Move to Monday
+    } else if (dayOfWeek === 6) { // Saturday
+      date.setDate(date.getDate() + 2); // Move to Monday
     }
-    transactionGroups.get(key)!.push(transaction);
-  });
+    return date;
+  }
   
-  // For each group, try to detect recurring pattern and generate future instances
-  transactionGroups.forEach((groupTransactions, key) => {
-    if (groupTransactions.length < 1) return;
+  // Only process transactions marked as recurring
+  const recurringBaseTransactions = transactions.filter(tx => tx.recurring);
+  
+  recurringBaseTransactions.forEach(transaction => {
+    const baseDate = new Date(transaction.date);
+    const dayOfMonth = baseDate.getDate();
     
-    // Sort by date
-    const sortedTransactions = groupTransactions.sort((a, b) => a.date.localeCompare(b.date));
-    const lastTransaction = sortedTransactions[sortedTransactions.length - 1];
-    const lastDate = new Date(lastTransaction.date);
+    console.log(`🔄 Simple recurring for "${transaction.name}": same day each month (${dayOfMonth}th)`);
     
-    // Analyze all dates to detect pattern type
-    const allDates = sortedTransactions.map(tx => new Date(tx.date));
-    const intervals = [];
-    for (let i = 1; i < allDates.length; i++) {
-      const daysDiff = Math.round((allDates[i].getTime() - allDates[i-1].getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff > 0 && daysDiff <= 90) intervals.push(daysDiff);
-    }
+    let instanceCount = 0;
+    let currentMonth = today.getMonth();
+    let currentYear = today.getFullYear();
     
-    // Determine if this is bi-weekly (around 14 days) or monthly (around 30 days)
-    const avgInterval = intervals.length > 0 ? intervals.reduce((sum, i) => sum + i, 0) / intervals.length : 30;
-    const isBiWeekly = avgInterval >= 10 && avgInterval <= 18; // ~14 days with some tolerance
-    const isMonthly = avgInterval >= 25 && avgInterval <= 35; // ~30 days with some tolerance
-    
-    console.log(`🔍 Pattern analysis for "${lastTransaction.name}": ${allDates.length} occurrences, avg interval: ${avgInterval.toFixed(1)} days, ${isBiWeekly ? 'BI-WEEKLY' : isMonthly ? 'MONTHLY' : 'IRREGULAR'} pattern`);
-    
-          // If the last occurrence was in the past, generate future instances
-      if (lastDate < today) {
-        let instanceCount = 0;
-        
-        if (lastTransaction.type === 'paycheck' || isBiWeekly) {
-          // Paychecks: Use frequency-based approach (bi-weekly pattern)
-          let intervalDays = 14; // Default bi-weekly
-          
-          // Use the calculated average interval from pattern analysis
-          intervalDays = Math.round(avgInterval);
-          
-          // Generate future paycheck instances using frequency
-          let nextDate = new Date(lastDate);
-          nextDate.setDate(nextDate.getDate() + intervalDays);
-          
-          while (nextDate <= endDate && instanceCount < 50) {
-            recurringTransactions.push({
-              id: `${lastTransaction.id}-future-${instanceCount}`,
-              name: lastTransaction.name,
-              amount: lastTransaction.amount,
-              date: nextDate.toISOString(),
-              type: lastTransaction.type,
-              recurring: true,
-              schedule: {
-                frequency: intervalDays <= 7 ? 'weekly' : intervalDays <= 31 ? 'monthly' : 'yearly',
-                interval: intervalDays <= 7 ? 1 : intervalDays <= 31 ? 1 : 1
-              }
-            });
-            
-            nextDate = new Date(nextDate);
-            nextDate.setDate(nextDate.getDate() + intervalDays);
-            instanceCount++;
-          }
-          
-          console.log(`🔄 Generated ${instanceCount} future ${lastTransaction.type === 'paycheck' ? 'paycheck' : 'bi-weekly'} instances of "${lastTransaction.name}" (every ${intervalDays} days)`);
-          
-        } else {
-          // Bills/Expenses: Use day-of-month pattern for more accurate monthly billing
-          const dayOfMonth = lastDate.getDate(); // e.g., 15th of the month
-          let currentMonth = lastDate.getMonth();
-          let currentYear = lastDate.getFullYear();
-          
-          console.log(`🔍 Generating recurring for "${lastTransaction.name}": last date ${lastDate.toISOString().slice(0, 10)}, day-of-month: ${dayOfMonth}, historical transactions in group: ${sortedTransactions.length}`);
-          
-          // Start from next month
-          currentMonth++;
-          if (currentMonth > 11) {
-            currentMonth = 0;
-            currentYear++;
-          }
-          
-          while (instanceCount < 50) {
-            // Create date for this month on the same day
-            let nextDate = new Date(currentYear, currentMonth, dayOfMonth);
-            
-            // Handle months with fewer days (e.g., trying to set Feb 31st)
-            if (nextDate.getMonth() !== currentMonth) {
-              // If day doesn't exist in this month, use last day of month
-              nextDate = new Date(currentYear, currentMonth + 1, 0);
-            }
-            
-            if (nextDate > endDate) break;
-            
-            recurringTransactions.push({
-              id: `${lastTransaction.id}-future-${instanceCount}`,
-              name: lastTransaction.name,
-              amount: lastTransaction.amount,
-              date: nextDate.toISOString(),
-              type: lastTransaction.type,
-              recurring: true,
-              schedule: {
-                frequency: 'monthly',
-                interval: 1
-              }
-            });
-            
-            instanceCount++;
-            
-            // Move to next month
-            currentMonth++;
-            if (currentMonth > 11) {
-              currentMonth = 0;
-              currentYear++;
-            }
-          }
-          
-          console.log(`🔄 Generated ${instanceCount} future bill instances of "${lastTransaction.name}" (${dayOfMonth}th of each month)`);
-        }
+    // Start from current month if we haven't had this transaction yet this month
+    const currentMonthDate = new Date(currentYear, currentMonth, dayOfMonth);
+    if (currentMonthDate < today) {
+      // Already passed this month, start next month
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
       }
+    }
+    
+    // Generate future instances - same day each month
+    while (instanceCount < 50) {
+      let nextDate = new Date(currentYear, currentMonth, dayOfMonth);
+      
+      // Handle months with fewer days (e.g., Feb 31st becomes Feb 28th/29th)
+      if (nextDate.getMonth() !== currentMonth) {
+        nextDate = new Date(currentYear, currentMonth + 1, 0); // Last day of the month
+      }
+      
+      // Move weekends to Monday
+      nextDate = adjustForWeekend(nextDate);
+      
+      if (nextDate > endDate) break;
+      
+      recurringTransactions.push({
+        id: `${transaction.id}-future-${instanceCount}`,
+        name: transaction.name,
+        amount: transaction.amount,
+        date: nextDate.toISOString(),
+        type: transaction.type,
+        recurring: true,
+        schedule: {
+          frequency: 'monthly',
+          interval: 1
+        }
+      });
+      
+      instanceCount++;
+      
+      // Move to next month
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+    }
+    
+    console.log(`✅ Generated ${instanceCount} simple monthly instances of "${transaction.name}"`);
   });
   
   return recurringTransactions;

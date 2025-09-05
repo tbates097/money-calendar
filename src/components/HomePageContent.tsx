@@ -362,6 +362,12 @@ export default function HomePageContent() {
           {viewMode === 'calendar' ? (
             <CalendarView 
               projection={projection.periods} 
+              onRefresh={() => {
+                console.log('🔄 Calendar refresh requested - regenerating projection data');
+                // Force a re-render by updating a state that triggers projection recalculation
+                // The projection is computed in the useMemo, so we need to trigger that
+                saveData({}); // This will trigger a data reload and projection recalculation
+              }}
               onTransactionEdit={(editedTransaction, applyToFuture) => {
                 console.log('📝 Transaction edit requested:', { editedTransaction, applyToFuture });
                 
