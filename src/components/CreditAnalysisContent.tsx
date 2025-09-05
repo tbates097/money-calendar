@@ -142,7 +142,7 @@ export default function CreditAnalysisContent() {
       if (lastCategoryUpdateDate) {
         // Only show transactions from the last category update date onward
         const cutoffDate = new Date(lastCategoryUpdateDate);
-        filteredTransactions = allTransactions.filter(tx => {
+        filteredTransactions = allTransactions.filter((tx: any) => {
           const txDate = new Date(tx.date);
           return txDate >= cutoffDate;
         });
