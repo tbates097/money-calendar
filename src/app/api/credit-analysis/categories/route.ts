@@ -24,16 +24,20 @@ export async function GET(request: NextRequest) {
     const categoriesMap: {[transactionId: string]: string} = {}
     let latestUpdateDate: Date | null = null
 
-    customCategories.forEach(cc => {
+    customCategories.forEach((cc: any) => {
       categoriesMap[cc.transactionId] = cc.category
       if (!latestUpdateDate || cc.updatedAt > latestUpdateDate) {
         latestUpdateDate = cc.updatedAt
       }
     })
 
+    const latestUpdateDateString: string | null = latestUpdateDate !== null 
+      ? (latestUpdateDate as Date).toISOString() 
+      : null
+
     return NextResponse.json({ 
       customCategories: categoriesMap,
-      latestUpdateDate: latestUpdateDate ? latestUpdateDate.toISOString() : null
+      latestUpdateDate: latestUpdateDateString
     })
   } catch (error) {
     console.error('Get custom categories error:', error)
@@ -62,14 +66,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Use transaction to update all categories atomically
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Delete existing categories for this user (we'll recreate them)
       await tx.creditAnalysisCustomCategory.deleteMany({
         where: { userId: session.user.id }
       })
 
       // Insert new categories
-      const categoriesToInsert = Object.entries(customCategories).map(([transactionId, category]) => ({
+      const categoriesToInsert = Object.entries(customCategories).map(([transactionId, category]: [string, string]) => ({
         userId: session.user.id,
         transactionId,
         category
