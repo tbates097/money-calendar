@@ -78,6 +78,7 @@ export default function CreditAnalysisContent() {
   const [availableCategories, setAvailableCategories] = useState<string[]>(Object.keys(CREDIT_CARD_CATEGORIES));
   const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [expandedCategories, setExpandedCategories] = useState<{[categoryName: string]: boolean}>({});
+  const [lastCategoryUpdateDate, setLastCategoryUpdateDate] = useState<Date | null>(null);
 
   // Load credit card data from SimpleFIN
   const loadCreditCardData = async () => {
@@ -136,8 +137,24 @@ export default function CreditAnalysisContent() {
           memo: tx.memo || ''
         }));
 
+      // Apply date-based filtering to avoid re-analyzing old transactions
+      let filteredTransactions = allTransactions;
+      if (lastCategoryUpdateDate) {
+        // Only show transactions from the last category update date onward
+        const cutoffDate = new Date(lastCategoryUpdateDate);
+        filteredTransactions = allTransactions.filter(tx => {
+          const txDate = new Date(tx.date);
+          return txDate >= cutoffDate;
+        });
+        
+        const filteredCount = allTransactions.length - filteredTransactions.length;
+        console.log(`📊 Credit Analysis date filtering: ${allTransactions.length} total, ${filteredCount} before ${cutoffDate.toISOString().slice(0, 10)}, ${filteredTransactions.length} new/current`);
+      } else {
+        console.log(`📊 Credit Analysis: No previous analysis date, showing all ${allTransactions.length} transactions`);
+      }
+
       setAccounts(allAccounts);
-      setTransactions(allTransactions);
+      setTransactions(filteredTransactions);
       
       if (allAccounts.length === 0) {
         setError('No accounts found. Make sure you have accounts connected in SimpleFIN.');
@@ -314,21 +331,70 @@ export default function CreditAnalysisContent() {
     }
   };
 
-  const saveCustomCategories = () => {
-    // Save to localStorage for persistence
-    localStorage.setItem('customCategories', JSON.stringify(customCategories));
-    localStorage.setItem('availableCategories', JSON.stringify(availableCategories));
+  const saveCustomCategories = async () => {
+    if (session?.user?.id && !isGuestMode) {
+      // Authenticated user - save to database
+      try {
+        const response = await fetch('/api/credit-analysis/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ customCategories }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to save categories: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(`Saved ${data.savedCount} custom categories to database`);
+        
+        // Update the last update date to current time for date filtering
+        setLastCategoryUpdateDate(new Date());
+      } catch (error) {
+        console.error('Failed to save categories to database:', error);
+        setError('Failed to save category changes. Please try again.');
+        return;
+      }
+    } else {
+      // Guest mode - save to localStorage
+      localStorage.setItem('customCategories', JSON.stringify(customCategories));
+      localStorage.setItem('availableCategories', JSON.stringify(availableCategories));
+    }
+    
     setEditMode(false);
   };
 
-  const loadCustomCategories = () => {
-    const saved = localStorage.getItem('customCategories');
-    const savedAvailable = localStorage.getItem('availableCategories');
-    if (saved) {
-      setCustomCategories(JSON.parse(saved));
-    }
-    if (savedAvailable) {
-      setAvailableCategories(JSON.parse(savedAvailable));
+  const loadCustomCategories = async () => {
+    if (session?.user?.id && !isGuestMode) {
+      // Authenticated user - load from database
+      try {
+        const response = await fetch('/api/credit-analysis/categories');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.customCategories) {
+            setCustomCategories(data.customCategories);
+            console.log(`Loaded ${Object.keys(data.customCategories).length} custom categories from database`);
+          }
+          if (data.latestUpdateDate) {
+            setLastCategoryUpdateDate(new Date(data.latestUpdateDate));
+            console.log(`Last category update: ${data.latestUpdateDate}`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load categories from database:', error);
+      }
+    } else {
+      // Guest mode - load from localStorage
+      const saved = localStorage.getItem('customCategories');
+      const savedAvailable = localStorage.getItem('availableCategories');
+      if (saved) {
+        setCustomCategories(JSON.parse(saved));
+      }
+      if (savedAvailable) {
+        setAvailableCategories(JSON.parse(savedAvailable));
+      }
     }
   };
 
@@ -340,10 +406,12 @@ export default function CreditAnalysisContent() {
     }));
   };
 
-  // Load custom categories on mount
+  // Load custom categories when session changes
   useEffect(() => {
-    loadCustomCategories();
-  }, []);
+    if (session !== undefined) { // Wait for session to be determined
+      loadCustomCategories();
+    }
+  }, [session, isGuestMode]);
 
   return (
     <AuthWrapper>

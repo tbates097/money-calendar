@@ -54,6 +54,7 @@ model User {
   simplefinAccounts     SimplefinAccount[]
   simplefinConnection   SimplefinConnection?
   importedTransactionIds ImportedTransactionId[]
+  creditAnalysisCustomCategories CreditAnalysisCustomCategory[]
 
   @@map("users")
 }
@@ -140,4 +141,18 @@ model ImportedTransactionId {
 
   @@unique([userId, transactionId, source])
   @@index([userId, source])
+}
+
+model CreditAnalysisCustomCategory {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String   // SimpleFIN transaction ID
+  category      String   // Custom category assigned
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, transactionId])
+  @@index([userId])
 }
